@@ -1,40 +1,83 @@
 import React, { useState } from "react";
-import { Building2 } from "lucide-react";
 
 /**
- * Normalizes company names to SimpleIcons slug & official brand hex color
+ * Robust mapping of company names to high-definition vector SVG URLs
  */
-const BRAND_MAP = {
-  amazon: { slug: "amazon", color: "FF9900", name: "Amazon" },
-  google: { slug: "google", color: "4285F4", name: "Google" },
-  microsoft: { slug: "microsoft", color: "00A4EF", name: "Microsoft" },
-  atlassian: { slug: "atlassian", color: "0052CC", name: "Atlassian" },
-  "goldman sachs": { slug: "goldmansachs", color: "002F6C", name: "Goldman Sachs" },
-  goldman: { slug: "goldmansachs", color: "002F6C", name: "Goldman Sachs" },
-  meta: { slug: "meta", color: "0081FB", name: "Meta" },
-  apple: { slug: "apple", color: "000000", name: "Apple" },
-  netflix: { slug: "netflix", color: "E50914", name: "Netflix" },
-  uber: { slug: "uber", color: "000000", name: "Uber" },
-  oracle: { slug: "oracle", color: "F80000", name: "Oracle" },
-  adobe: { slug: "adobe", color: "FF0000", name: "Adobe" },
-  tcs: { slug: "tata", color: "005699", name: "TCS" },
-  "tata consultancy services": { slug: "tata", color: "005699", name: "TCS" },
-  infosys: { slug: "infosys", color: "007CC3", name: "Infosys" },
-  wipro: { slug: "wipro", color: "000000", name: "Wipro" },
-  accenture: { slug: "accenture", color: "A100FF", name: "Accenture" },
-  cognizant: { slug: "cognizant", color: "0033A0", name: "Cognizant" },
-  salesforce: { slug: "salesforce", color: "00A1E0", name: "Salesforce" },
-  cisco: { slug: "cisco", color: "1BA0D7", name: "Cisco" },
-  intel: { slug: "intel", color: "0071C5", name: "Intel" },
-  ibm: { slug: "ibm", color: "052FAD", name: "IBM" },
-  nvidia: { slug: "nvidia", color: "76B900", name: "Nvidia" },
+const COMPANY_LOGO_MAP = {
+  // Amazon / AWS
+  amazon: "https://cdn.simpleicons.org/amazon/232F3E",
+  aws: "https://cdn.simpleicons.org/amazonwebservices/232F3E",
+
+  // Microsoft
+  microsoft: "https://cdn.simpleicons.org/microsoft/0078D4",
+
+  // Google
+  google: "https://cdn.simpleicons.org/google/4285F4",
+
+  // Tata / TCS
+  tcs: "https://cdn.simpleicons.org/tata/005699",
+  tata: "https://cdn.simpleicons.org/tata/005699",
+  "tata consultancy services": "https://cdn.simpleicons.org/tata/005699",
+
+  // Infosys
+  infosys: "https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/infosys.svg",
+
+  // Accenture
+  accenture: "https://cdn.simpleicons.org/accenture/A100FF",
+
+  // Meta / Facebook
+  meta: "https://cdn.simpleicons.org/meta/0668E1",
+  facebook: "https://cdn.simpleicons.org/meta/0668E1",
+
+  // Apple
+  apple: "https://cdn.simpleicons.org/apple/000000",
+
+  // Atlassian
+  atlassian: "https://cdn.simpleicons.org/atlassian/0052CC",
+
+  // Goldman Sachs
+  "goldman sachs": "https://cdn.simpleicons.org/goldmansachs/002F6C",
+  goldman: "https://cdn.simpleicons.org/goldmansachs/002F6C",
+
+  // Netflix
+  netflix: "https://cdn.simpleicons.org/netflix/E50914",
+
+  // Uber
+  uber: "https://cdn.simpleicons.org/uber/000000",
+
+  // Oracle
+  oracle: "https://cdn.simpleicons.org/oracle/F80000",
+
+  // Adobe
+  adobe: "https://cdn.simpleicons.org/adobe/FF0000",
+
+  // Salesforce
+  salesforce: "https://cdn.simpleicons.org/salesforce/00A1E0",
+
+  // Nvidia
+  nvidia: "https://cdn.simpleicons.org/nvidia/76B900",
+
+  // IBM
+  ibm: "https://cdn.simpleicons.org/ibm/052FAD",
+
+  // Intel
+  intel: "https://cdn.simpleicons.org/intel/0071C5",
+
+  // Cisco
+  cisco: "https://cdn.simpleicons.org/cisco/1BA0D7",
+
+  // Wipro
+  wipro: "https://cdn.simpleicons.org/wipro/000000",
+
+  // Cognizant
+  cognizant: "https://cdn.simpleicons.org/cognizant/0033A0",
 };
 
 /**
- * Fallback gradient palettes for unlisted companies
+ * Gradient colors for unlisted or fallback monograms
  */
 const getFallbackGradient = (name = "") => {
-  const char = name.charAt(0).toUpperCase();
+  const char = name.trim().charAt(0).toUpperCase();
   if (["A", "B", "C", "D"].includes(char)) return "from-indigo-600 to-blue-600";
   if (["E", "F", "G", "H"].includes(char)) return "from-blue-600 to-cyan-600";
   if (["I", "J", "K", "L"].includes(char)) return "from-emerald-600 to-teal-600";
@@ -43,49 +86,44 @@ const getFallbackGradient = (name = "") => {
 };
 
 /**
- * CompanyLogo Component
- * Renders crisp official SVGs with graceful fallback to monogram squircle.
+ * Returns first two initials of company name
  */
-export default function CompanyLogo({ companyName = "", size = "md", className = "" }) {
+const getCompanyInitials = (name = "") => {
+  if (!name) return "CO";
+  const words = name.trim().split(/\s+/);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+};
+
+/**
+ * CompanyLogo Component
+ * Renders verified vector SVGs in a standardized white rounded container with smooth error fallback.
+ */
+export default function CompanyLogo({ companyName = "", className = "" }) {
   const [imgError, setImgError] = useState(false);
 
   const cleanName = companyName.trim().toLowerCase();
-  const brand = BRAND_MAP[cleanName] || Object.entries(BRAND_MAP).find(([key]) => cleanName.includes(key))?.[1];
 
-  const sizeClasses = {
-    sm: "w-9 h-9 p-1.5",
-    md: "w-12 h-12 p-2.5",
-    lg: "w-14 h-14 p-3",
-  }[size] || "w-12 h-12 p-2.5";
+  // Exact match or substring match from dictionary
+  const logoUrl =
+    COMPANY_LOGO_MAP[cleanName] ||
+    Object.entries(COMPANY_LOGO_MAP).find(([key]) => cleanName.includes(key))?.[1];
 
-  const imgSizeClasses = {
-    sm: "w-5 h-5",
-    md: "w-7 h-7",
-    lg: "w-8 h-8",
-  }[size] || "w-7 h-7";
+  const initials = getCompanyInitials(companyName);
 
-  const initials = companyName
-    ? companyName
-        .split(" ")
-        .map((w) => w[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase()
-    : "CO";
-
-  // If brand is matched and image has not failed
-  if (brand && !imgError) {
-    const iconUrl = `https://cdn.simpleicons.org/${brand.slug}/${brand.color}`;
-
+  // If logo URL is found and has not errored
+  if (logoUrl && !imgError) {
     return (
       <div
-        className={`bg-white rounded-xl shadow-xs border border-slate-200/90 flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${sizeClasses} ${className}`}
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white p-2 shadow-sm transition-transform duration-200 group-hover:scale-105 ${className}`}
         title={companyName}
       >
         <img
-          src={iconUrl}
-          alt={`${companyName} logo`}
-          className={`${imgSizeClasses} object-contain transition-opacity duration-150`}
+          src={logoUrl}
+          alt={companyName}
+          className="h-full w-full object-contain"
           loading="lazy"
           onError={() => setImgError(true)}
         />
@@ -93,15 +131,15 @@ export default function CompanyLogo({ companyName = "", size = "md", className =
     );
   }
 
-  // Fallback: Gradient Monogram Squircle
+  // Graceful Monogram Fallback
   return (
     <div
-      className={`rounded-xl bg-gradient-to-br ${getFallbackGradient(
+      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getFallbackGradient(
         companyName
-      )} flex items-center justify-center shrink-0 text-white font-bold font-heading shadow-xs border border-white/20 transition-transform duration-200 group-hover:scale-105 ${sizeClasses} ${className}`}
+      )} font-heading text-sm font-bold text-white shadow-sm border border-white/20 transition-transform duration-200 group-hover:scale-105 ${className}`}
       title={companyName}
     >
-      <span className={size === "sm" ? "text-xs" : "text-sm"}>{initials}</span>
+      <span>{initials}</span>
     </div>
   );
 }
