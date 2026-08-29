@@ -1,35 +1,27 @@
 import React, { useState, useEffect } from "react";
 import {
   Briefcase,
-  GraduationCap,
+  PlusCircle,
+  X,
+  Command,
+  Search,
   Building2,
+  TrendingUp,
+  Award,
   ShieldCheck,
   CheckCircle2,
   XCircle,
-  Clock,
-  Search,
-  Filter,
-  FileText,
-  User,
-  PlusCircle,
-  ChevronRight,
-  TrendingUp,
-  Award,
-  MapPin,
-  RefreshCw,
-  X,
-  LogIn,
-  LogOut,
 } from "lucide-react";
+import Navbar from "./components/Navbar";
+import StudentDashboard from "./pages/StudentDashboard";
+import ApplicantTable from "./components/ApplicantTable";
 import {
   authApi,
   drivesApi,
   applicationsApi,
   checkHealthApi,
   getStoredToken,
-  getStoredUser,
 } from "./services/api";
-import ApplicationStepper from "./components/ApplicationStepper";
 import {
   initialStudentProfile,
   initialDrives,
@@ -37,13 +29,12 @@ import {
   initialAdminStats,
 } from "./services/mockData";
 
-// Demo Credentials for quick-switch
 const DEMO_USERS = {
   STUDENT: {
     email: "alex.sharma@student.edu",
     password: "Password@123",
     role: "STUDENT",
-    name: "Alex Sharma (CS)",
+    name: "Alex Sharma",
   },
   RECRUITER: {
     email: "recruiter.google@placement.edu",
@@ -60,10 +51,7 @@ const DEMO_USERS = {
 };
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(null);
   const [role, setRole] = useState("STUDENT"); // 'STUDENT' | 'RECRUITER' | 'ADMIN'
-  const [activeTab, setActiveTab] = useState("drives"); // 'drives' | 'applications' | 'admin_analytics'
-
   const [profile, setProfile] = useState(initialStudentProfile);
   const [drives, setDrives] = useState(initialDrives);
   const [applications, setApplications] = useState(initialApplications);
@@ -72,7 +60,7 @@ export default function App() {
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("ALL");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   // Health check state
   const [serverHealth, setServerHealth] = useState({
@@ -81,12 +69,12 @@ export default function App() {
     dbStatus: "PENDING",
   });
 
-  // Modals & Notifications
+  // Modal States
   const [selectedDriveModal, setSelectedDriveModal] = useState(null);
   const [isPostDriveOpen, setIsPostDriveOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
-  // Form State for Post Drive
+  // New Drive Form
   const [newDriveForm, setNewDriveForm] = useState({
     title: "",
     companyName: "",
@@ -99,12 +87,23 @@ export default function App() {
     description: "",
   });
 
-  const showToast = (msg, type = "success") => {
-    setToastMessage({ text: msg, type });
+  const showToast = (text, type = "success") => {
+    setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Health Check ping
+  // Keyboard shortcut listener for Cmd + K / Ctrl + K
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setIsSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const checkHealth = async () => {
     try {
       const startTime = Date.now();
@@ -124,37 +123,25 @@ export default function App() {
     }
   };
 
-  // Switch demo user with real JWT login
   const handleRoleSwitch = async (targetRole) => {
     setRole(targetRole);
-    if (targetRole === "ADMIN") setActiveTab("admin_analytics");
-    else setActiveTab("drives");
-
     const demoCreds = DEMO_USERS[targetRole];
     if (!demoCreds) return;
 
     try {
-      setIsLoading(true);
       const authData = await authApi.login(demoCreds.email, demoCreds.password);
-      setCurrentUser(authData.user);
-      if (authData.user.profile) {
+      if (authData?.user?.profile) {
         setProfile(authData.user.profile);
       }
       showToast(`Switched to ${demoCreds.name} (${targetRole})`, "success");
       await loadPortalData();
-    } catch (err) {
-      console.warn("Backend auth unavailable, operating in demo state mode");
-      showToast(`Switched role to ${targetRole} (Demo Mode)`, "info");
-    } finally {
-      setIsLoading(false);
+    } catch (_) {
+      showToast(`Switched role to ${targetRole}`, "info");
     }
   };
 
-  // Load live data from backend APIs
   const loadPortalData = async () => {
     try {
-      setIsLoading(true);
-      // 1. Fetch drives
       const fetchedDrives = await drivesApi.getDrives({
         search: searchQuery,
         branch: selectedBranch,
@@ -163,17 +150,12 @@ export default function App() {
         setDrives(fetchedDrives);
       }
 
-      // 2. If student, fetch my applications
-      if (role === "STUDENT" && getStoredToken()) {
-        try {
-          const myApps = await applicationsApi.getMyApplications();
-          if (myApps) setApplications(myApps);
-        } catch (_) {}
+      if (getStoredToken()) {
+        const myApps = await applicationsApi.getMyApplications();
+        if (myApps) setApplications(myApps);
       }
     } catch (err) {
-      console.warn("Using fallback local data:", err.message);
-    } finally {
-      setIsLoading(false);
+      console.warn("Using fallback local dataset:", err.message);
     }
   };
 
@@ -188,12 +170,11 @@ export default function App() {
     loadPortalData();
   }, [searchQuery, selectedBranch, role]);
 
-  // Apply to drive handler (Student)
+  // Apply to Drive Handler
   const handleApply = async (drive) => {
     try {
-      // 1. Attempt API apply
       if (getStoredToken() && role === "STUDENT") {
-        const application = await applicationsApi.apply(drive.id);
+        await applicationsApi.apply(drive.id);
         showToast(`Successfully applied to ${drive.companyName}! 🎉`, "success");
         await loadPortalData();
         if (selectedDriveModal) setSelectedDriveModal(null);
@@ -206,7 +187,7 @@ export default function App() {
       }
     }
 
-    // Local fallback apply
+    // Local fallback
     const isAlreadyApplied = applications.some((a) => a.jobDriveId === drive.id);
     if (isAlreadyApplied) {
       showToast("You have already applied for this drive.", "warning");
@@ -229,7 +210,7 @@ export default function App() {
     if (selectedDriveModal) setSelectedDriveModal(null);
   };
 
-  // Recruiter Create Drive handler
+  // Recruiter Create Drive
   const handleCreateDrive = async (e) => {
     e.preventDefault();
     if (!newDriveForm.title || !newDriveForm.companyName || !newDriveForm.ctc) {
@@ -240,7 +221,7 @@ export default function App() {
     const drivePayload = {
       title: newDriveForm.title,
       companyName: newDriveForm.companyName,
-      description: newDriveForm.description || "Exciting engineering role.",
+      description: newDriveForm.description || "Engineering role.",
       ctc: newDriveForm.ctc,
       location: newDriveForm.location || "Bangalore, India",
       minCgpa: parseFloat(newDriveForm.minCgpa) || 0,
@@ -252,7 +233,7 @@ export default function App() {
     try {
       if (getStoredToken()) {
         await drivesApi.createDrive(drivePayload);
-        showToast(`Drive for ${drivePayload.companyName} published to live database!`, "success");
+        showToast(`Drive for ${drivePayload.companyName} published!`, "success");
         await loadPortalData();
         setIsPostDriveOpen(false);
         return;
@@ -261,7 +242,6 @@ export default function App() {
       showToast(err.message || "Failed to create drive", "error");
     }
 
-    // Fallback
     const localDrive = {
       id: `drive-${Date.now()}`,
       ...drivePayload,
@@ -269,10 +249,10 @@ export default function App() {
     };
     setDrives([localDrive, ...drives]);
     setIsPostDriveOpen(false);
-    showToast(`Drive for ${drivePayload.companyName} created locally!`, "success");
+    showToast(`Drive for ${drivePayload.companyName} created!`, "success");
   };
 
-  // Recruiter Update Candidate Status
+  // Recruiter Update Status
   const handleUpdateStatus = async (appId, newStatus) => {
     try {
       if (getStoredToken()) {
@@ -288,802 +268,282 @@ export default function App() {
     showToast(`Candidate stage updated to ${newStatus}`, "success");
   };
 
-  // Client-side search & branch filter
-  const displayedDrives = drives.filter((drive) => {
-    const matchesSearch =
-      drive.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      drive.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesBranch =
-      selectedBranch === "ALL" ||
-      (drive.allowedBranches && drive.allowedBranches.includes(selectedBranch));
-    return matchesSearch && matchesBranch;
-  });
-
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="min-h-screen bg-[#0B0F19] text-slate-100 flex flex-col font-sans">
+      
       {/* Toast Alert */}
       {toastMessage && (
         <div
-          style={{
-            position: "fixed",
-            bottom: "24px",
-            right: "24px",
-            zIndex: 100,
-            background:
-              toastMessage.type === "error"
-                ? "#dc2626"
-                : toastMessage.type === "warning"
-                ? "#d97706"
-                : "#10b981",
-            color: "#fff",
-            padding: "12px 20px",
-            borderRadius: "10px",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            fontWeight: 500,
-            animation: "slideUp 0.2s ease-out",
-          }}
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-semibold text-white shadow-2xl transition-all animate-bounce ${
+            toastMessage.type === "error"
+              ? "bg-rose-600 border border-rose-500"
+              : toastMessage.type === "warning"
+              ? "bg-amber-600 border border-amber-500"
+              : "bg-emerald-600 border border-emerald-500"
+          }`}
         >
-          {toastMessage.type === "error" ? <XCircle size={18} /> : <CheckCircle2 size={18} />}
-          {toastMessage.text}
+          {toastMessage.type === "error" ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
+          <span>{toastMessage.text}</span>
         </div>
       )}
 
-      {/* Navigation Header */}
-      <header
-        style={{
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-          backgroundColor: "rgba(10, 14, 26, 0.85)",
-          backdropFilter: "blur(12px)",
-          position: "sticky",
-          top: 0,
-          zIndex: 40,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1280px",
-            margin: "0 auto",
-            padding: "16px 24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: "16px",
-          }}
-        >
-          {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div
-              style={{
-                width: "42px",
-                height: "42px",
-                borderRadius: "12px",
-                background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 0 15px rgba(99, 102, 241, 0.5)",
-              }}
-            >
-              <Briefcase size={22} color="#fff" />
-            </div>
-            <div>
-              <div style={{ fontSize: "1.25rem", fontWeight: 800, display: "flex", alignItems: "center", gap: "8px" }}>
-                <span>NexPlacement</span>
-                <span className="badge badge-emerald">JWT & RBAC ACTIVE</span>
-              </div>
-              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                Campus Recruitment & Placement Drive Portal
-              </p>
-            </div>
-          </div>
+      {/* Floating Glassmorphic Navbar */}
+      <Navbar
+        role={role}
+        onRoleChange={handleRoleSwitch}
+        profile={profile}
+        serverHealth={serverHealth}
+        onCheckHealth={checkHealth}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onOpenSearchModal={() => setIsSearchModalOpen(true)}
+      />
 
-          {/* Center: Role Switcher with Live JWT Switch */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              background: "rgba(17, 24, 39, 0.8)",
-              padding: "4px",
-              borderRadius: "12px",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-            }}
-          >
-            <button
-              onClick={() => handleRoleSwitch("STUDENT")}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "8px",
-                border: "none",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                transition: "all 0.2s",
-                background: role === "STUDENT" ? "var(--accent-primary)" : "transparent",
-                color: role === "STUDENT" ? "#fff" : "var(--text-muted)",
-              }}
-            >
-              <GraduationCap size={16} /> Student View
-            </button>
-            <button
-              onClick={() => handleRoleSwitch("RECRUITER")}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "8px",
-                border: "none",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                transition: "all 0.2s",
-                background: role === "RECRUITER" ? "var(--accent-primary)" : "transparent",
-                color: role === "RECRUITER" ? "#fff" : "var(--text-muted)",
-              }}
-            >
-              <Building2 size={16} /> Recruiter View
-            </button>
-            <button
-              onClick={() => handleRoleSwitch("ADMIN")}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "8px",
-                border: "none",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                transition: "all 0.2s",
-                background: role === "ADMIN" ? "var(--accent-primary)" : "transparent",
-                color: role === "ADMIN" ? "#fff" : "var(--text-muted)",
-              }}
-            >
-              <ShieldCheck size={16} /> Admin Portal
-            </button>
-          </div>
-
-          {/* Right Header Status */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div
-              onClick={checkHealth}
-              title="Click to ping Express API"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "6px 12px",
-                background: "rgba(17, 24, 39, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                borderRadius: "9999px",
-                fontSize: "0.75rem",
-                cursor: "pointer",
-              }}
-            >
-              <div
-                className="pulse-dot"
-                style={{
-                  backgroundColor: serverHealth.status === "ONLINE" ? "#10b981" : "#f59e0b",
-                }}
-              />
-              <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>
-                API {serverHealth.status}
-              </span>
-              {serverHealth.latencyMs && (
-                <span style={{ color: "#34d399", fontWeight: 600 }}>
-                  {serverHealth.latencyMs}ms
-                </span>
-              )}
-            </div>
-
-            {role === "STUDENT" && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "6px 14px",
-                  background: "rgba(99, 102, 241, 0.15)",
-                  border: "1px solid rgba(99, 102, 241, 0.3)",
-                  borderRadius: "9999px",
-                  color: "#a5b4fc",
-                  fontSize: "0.85rem",
-                  fontWeight: 600,
-                }}
-              >
-                <User size={15} />
-                <span>Alex Sharma (CGPA: {profile.cgpa})</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Body */}
-      <main style={{ maxWidth: "1280px", margin: "0 auto", padding: "32px 24px", flex: 1, width: "100%" }}>
-        
-        {/* STUDENT ROLE */}
+      {/* View Switcher */}
+      <main className="flex-1 w-full">
         {role === "STUDENT" && (
-          <div>
-            {/* Student Stats Summary Bar */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: "16px",
-                marginBottom: "32px",
-              }}
-            >
-              <div className="glass-panel" style={{ padding: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Academic Profile</span>
-                  <Award size={18} color="#818cf8" />
-                </div>
-                <div style={{ fontSize: "1.6rem", fontWeight: 700, marginTop: "8px" }}>
-                  {profile.cgpa} <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>CGPA</span>
-                </div>
-                <div style={{ fontSize: "0.75rem", color: "#34d399", marginTop: "4px" }}>
-                  0 Active Backlogs • {profile.department}
-                </div>
-              </div>
-
-              <div className="glass-panel" style={{ padding: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Applications Submitted</span>
-                  <FileText size={18} color="#38bdf8" />
-                </div>
-                <div style={{ fontSize: "1.6rem", fontWeight: 700, marginTop: "8px" }}>
-                  {applications.length}
-                </div>
-                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
-                  Active career opportunities
-                </div>
-              </div>
-
-              <div className="glass-panel" style={{ padding: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Shortlisted / Offers</span>
-                  <TrendingUp size={18} color="#34d399" />
-                </div>
-                <div style={{ fontSize: "1.6rem", fontWeight: 700, marginTop: "8px" }}>
-                  {applications.filter((a) => a.status === "SHORTLISTED" || a.status === "OFFERED" || a.status === "INTERVIEW_SCHEDULED").length}
-                </div>
-                <div style={{ fontSize: "0.75rem", color: "#34d399", marginTop: "4px" }}>
-                  Progression in pipeline
-                </div>
-              </div>
-
-              <div className="glass-panel" style={{ padding: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Live Placement Drives</span>
-                  <Building2 size={18} color="#c084fc" />
-                </div>
-                <div style={{ fontSize: "1.6rem", fontWeight: 700, marginTop: "8px" }}>
-                  {displayedDrives.length}
-                </div>
-                <div style={{ fontSize: "0.75rem", color: "#c084fc", marginTop: "4px" }}>
-                  Actively accepting applications
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation Tabs */}
-            <div
-              style={{
-                display: "flex",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-                marginBottom: "24px",
-                gap: "24px",
-              }}
-            >
-              <button
-                onClick={() => setActiveTab("drives")}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: "12px 4px",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  color: activeTab === "drives" ? "#818cf8" : "var(--text-muted)",
-                  borderBottom: activeTab === "drives" ? "2px solid #818cf8" : "2px solid transparent",
-                }}
-              >
-                Browse Placement Drives ({displayedDrives.length})
-              </button>
-              <button
-                onClick={() => setActiveTab("applications")}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: "12px 4px",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  color: activeTab === "applications" ? "#818cf8" : "var(--text-muted)",
-                  borderBottom: activeTab === "applications" ? "2px solid #818cf8" : "2px solid transparent",
-                }}
-              >
-                Application Pipeline Tracker ({applications.length})
-              </button>
-            </div>
-
-            {/* TAB: Drives */}
-            {activeTab === "drives" && (
-              <div>
-                {/* Search & Filter */}
-                <div style={{ display: "flex", gap: "16px", marginBottom: "24px", flexWrap: "wrap" }}>
-                  <div style={{ flex: 1, minWidth: "260px", position: "relative", display: "flex", alignItems: "center" }}>
-                    <Search size={18} color="var(--text-muted)" style={{ position: "absolute", left: "14px" }} />
-                    <input
-                      type="text"
-                      placeholder="Search company, job title..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "12px 16px 12px 42px",
-                        borderRadius: "12px",
-                        background: "rgba(17, 24, 39, 0.8)",
-                        border: "1px solid rgba(255, 255, 255, 0.1)",
-                        color: "#fff",
-                        fontSize: "0.9rem",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <Filter size={18} color="var(--text-muted)" />
-                    <select
-                      value={selectedBranch}
-                      onChange={(e) => setSelectedBranch(e.target.value)}
-                      style={{
-                        padding: "12px 16px",
-                        borderRadius: "12px",
-                        background: "rgba(17, 24, 39, 0.8)",
-                        border: "1px solid rgba(255, 255, 255, 0.1)",
-                        color: "#fff",
-                        fontSize: "0.9rem",
-                        outline: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <option value="ALL">All Departments</option>
-                      <option value="Computer Science">Computer Science</option>
-                      <option value="Information Technology">Information Technology</option>
-                      <option value="Electronics">Electronics</option>
-                      <option value="Electrical">Electrical</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Drives Cards Grid */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: "20px" }}>
-                  {displayedDrives.map((drive) => {
-                    const isEligible = drive.isEligible !== false;
-                    const applied = applications.find(
-                      (a) => a.jobDriveId === drive.id || (a.jobDrive && a.jobDrive.id === drive.id)
-                    );
-
-                    return (
-                      <div
-                        key={drive.id}
-                        className="glass-panel glass-panel-interactive"
-                        style={{ padding: "24px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
-                      >
-                        <div>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                            <div>
-                              <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--accent-cyan)", textTransform: "uppercase" }}>
-                                {drive.companyName}
-                              </div>
-                              <h3 style={{ fontSize: "1.15rem", fontWeight: 700, marginTop: "2px" }}>{drive.title}</h3>
-                            </div>
-                            <span className="badge badge-emerald" style={{ fontSize: "0.85rem" }}>
-                              {drive.ctc}
-                            </span>
-                          </div>
-
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "16px" }}>
-                            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                              <MapPin size={14} /> {drive.location}
-                            </span>
-                            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                              <Clock size={14} /> Due {new Date(drive.deadline).toLocaleDateString()}
-                            </span>
-                          </div>
-
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "16px" }}>
-                            <span className="badge badge-indigo">Min CGPA: {drive.minCgpa}</span>
-                            <span className="badge badge-indigo">Max Backlogs: {drive.maxBacklogs}</span>
-                          </div>
-
-                          {/* Dynamic Eligibility Banner */}
-                          <div
-                            style={{
-                              padding: "8px 12px",
-                              borderRadius: "8px",
-                              marginBottom: "16px",
-                              fontSize: "0.8rem",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                              background: isEligible ? "rgba(16, 185, 129, 0.1)" : "rgba(244, 63, 94, 0.1)",
-                              border: `1px solid ${isEligible ? "rgba(16, 185, 129, 0.25)" : "rgba(244, 63, 94, 0.25)"}`,
-                              color: isEligible ? "#34d399" : "#fb7185",
-                            }}
-                          >
-                            {isEligible ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-                            <span>
-                              {isEligible
-                                ? "You meet all eligibility criteria"
-                                : drive.ineligibilityReasons?.[0] || "Eligibility criteria not met"}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
-                          <button
-                            onClick={() => setSelectedDriveModal(drive)}
-                            style={{
-                              flex: 1,
-                              padding: "10px",
-                              background: "rgba(255, 255, 255, 0.05)",
-                              border: "1px solid rgba(255, 255, 255, 0.1)",
-                              color: "#e5e7eb",
-                              borderRadius: "10px",
-                              fontSize: "0.85rem",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                            }}
-                          >
-                            View Details
-                          </button>
-
-                          {applied ? (
-                            <button
-                              disabled
-                              style={{
-                                flex: 1.2,
-                                padding: "10px",
-                                background: "rgba(16, 185, 129, 0.2)",
-                                border: "1px solid rgba(16, 185, 129, 0.4)",
-                                color: "#34d399",
-                                borderRadius: "10px",
-                                fontSize: "0.85rem",
-                                fontWeight: 600,
-                                cursor: "default",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: "6px",
-                              }}
-                            >
-                              <CheckCircle2 size={16} /> Applied ({applied.status})
-                            </button>
-                          ) : (
-                            <button
-                              disabled={!isEligible}
-                              onClick={() => handleApply(drive)}
-                              className="gradient-btn"
-                              style={{ flex: 1.2, padding: "10px", fontSize: "0.85rem" }}
-                            >
-                              Apply Now <ChevronRight size={16} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* TAB: Application Pipeline Tracker */}
-            {activeTab === "applications" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                {applications.length === 0 ? (
-                  <div className="glass-panel" style={{ padding: "48px", textAlign: "center" }}>
-                    <Briefcase size={40} color="var(--text-muted)" style={{ margin: "0 auto 12px" }} />
-                    <p style={{ color: "var(--text-muted)" }}>No applications submitted yet.</p>
-                  </div>
-                ) : (
-                  applications.map((app) => {
-                    const company = app.companyName || app.jobDrive?.companyName;
-                    const title = app.title || app.jobDrive?.title;
-                    const ctc = app.ctc || app.jobDrive?.ctc;
-                    const location = app.location || app.jobDrive?.location;
-
-                    return (
-                      <div key={app.id} className="glass-panel" style={{ padding: "24px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" }}>
-                          <div>
-                            <div style={{ color: "var(--accent-cyan)", fontSize: "0.85rem", fontWeight: 700 }}>
-                              {company}
-                            </div>
-                            <h3 style={{ fontSize: "1.2rem", fontWeight: 700 }}>{title}</h3>
-                            <div style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginTop: "4px" }}>
-                              Applied on {new Date(app.appliedAt).toLocaleDateString()} • {location}
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <span className="badge badge-emerald">{ctc}</span>
-                            <span className="badge badge-indigo">Stage: {app.status}</span>
-                          </div>
-                        </div>
-
-                        {/* Production-Grade Stepper Component */}
-                        <ApplicationStepper currentStatus={app.status} />
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
-          </div>
+          <StudentDashboard
+            profile={profile}
+            drives={drives}
+            applications={applications}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            selectedBranch={selectedBranch}
+            onSelectBranch={setSelectedBranch}
+            onApply={handleApply}
+            onSelectDriveModal={setSelectedDriveModal}
+          />
         )}
 
-        {/* RECRUITER ROLE */}
         {role === "RECRUITER" && (
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px", flexWrap: "wrap", gap: "16px" }}>
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
               <div>
-                <h2 style={{ fontSize: "1.6rem", fontWeight: 800 }}>Recruiter Drive Manager</h2>
-                <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
-                  Publish placement drives and update student candidate progression stages.
+                <h2 className="font-heading text-2xl font-bold text-white">
+                  Recruiter Drive Console
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Manage placement postings and candidate pipeline progression.
                 </p>
               </div>
+
               <button
                 onClick={() => setIsPostDriveOpen(true)}
-                className="gradient-btn"
-                style={{ padding: "12px 20px" }}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-xs font-semibold text-white shadow-glow hover:from-indigo-500 hover:to-purple-500 cursor-pointer"
               >
-                <PlusCircle size={18} /> Post New Drive
+                <PlusCircle size={15} />
+                <span>Post New Drive</span>
               </button>
             </div>
 
-            {/* Drives Table */}
-            <div className="glass-panel" style={{ overflow: "hidden", marginBottom: "32px" }}>
-              <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", fontWeight: 700 }}>
-                Active Hiring Drives ({drives.length})
-              </div>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
-                  <thead>
-                    <tr style={{ background: "rgba(0, 0, 0, 0.2)", textAlign: "left", color: "var(--text-muted)" }}>
-                      <th style={{ padding: "14px 24px" }}>Company & Title</th>
-                      <th style={{ padding: "14px 24px" }}>Package (CTC)</th>
-                      <th style={{ padding: "14px 24px" }}>Min CGPA</th>
-                      <th style={{ padding: "14px 24px" }}>Allowed Branches</th>
-                      <th style={{ padding: "14px 24px" }}>Applicants</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {drives.map((d) => (
-                      <tr key={d.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
-                        <td style={{ padding: "16px 24px" }}>
-                          <div style={{ fontWeight: 700, color: "#fff" }}>{d.companyName}</div>
-                          <div style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>{d.title}</div>
-                        </td>
-                        <td style={{ padding: "16px 24px" }}><span className="badge badge-emerald">{d.ctc}</span></td>
-                        <td style={{ padding: "16px 24px" }}>{d.minCgpa}</td>
-                        <td style={{ padding: "16px 24px", color: "var(--text-muted)" }}>{d.allowedBranches?.join(", ")}</td>
-                        <td style={{ padding: "16px 24px" }}>
-                          <span className="badge badge-indigo">{d.applicantsCount || 1} Candidate(s)</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Candidate Stage Progression Action Panel */}
-            <div className="glass-panel" style={{ padding: "24px" }}>
-              <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginBottom: "16px" }}>
-                Applicant Action Pipeline (PATCH /api/applications/:id/status)
-              </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {applications.map((app) => (
-                  <div
-                    key={app.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "16px",
-                      background: "rgba(0, 0, 0, 0.25)",
-                      borderRadius: "12px",
-                      flexWrap: "wrap",
-                      gap: "12px",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700, color: "#fff" }}>
-                        {profile.fullName} <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>({profile.rollNumber})</span>
-                      </div>
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                        Applied to {app.companyName || app.jobDrive?.companyName} • Current: <span style={{ color: "#818cf8", fontWeight: 600 }}>{app.status}</span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      <button
-                        onClick={() => handleUpdateStatus(app.id, "SHORTLISTED")}
-                        style={{ padding: "6px 10px", borderRadius: "6px", background: "rgba(59, 130, 246, 0.2)", border: "1px solid rgba(59, 130, 246, 0.4)", color: "#60a5fa", fontSize: "0.75rem", cursor: "pointer", fontWeight: 600 }}
-                      >
-                        Shortlist
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(app.id, "INTERVIEW_SCHEDULED")}
-                        style={{ padding: "6px 10px", borderRadius: "6px", background: "rgba(168, 85, 247, 0.2)", border: "1px solid rgba(168, 85, 247, 0.4)", color: "#c084fc", fontSize: "0.75rem", cursor: "pointer", fontWeight: 600 }}
-                      >
-                        Schedule Interview
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(app.id, "OFFERED")}
-                        style={{ padding: "6px 10px", borderRadius: "6px", background: "rgba(16, 185, 129, 0.2)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#34d399", fontSize: "0.75rem", cursor: "pointer", fontWeight: 600 }}
-                      >
-                        Make Offer
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(app.id, "REJECTED")}
-                        style={{ padding: "6px 10px", borderRadius: "6px", background: "rgba(244, 63, 94, 0.2)", border: "1px solid rgba(244, 63, 94, 0.4)", color: "#fb7185", fontSize: "0.75rem", cursor: "pointer", fontWeight: 600 }}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Applicant Roster Table with Inline Stage Updates & CSV Export */}
+            <ApplicantTable
+              applications={applications}
+              studentProfile={profile}
+              onUpdateStatus={handleUpdateStatus}
+            />
           </div>
         )}
 
-        {/* ADMIN ROLE */}
         {role === "ADMIN" && (
-          <div>
-            <div style={{ marginBottom: "28px" }}>
-              <h2 style={{ fontSize: "1.6rem", fontWeight: 800 }}>Campus Placement Executive Overview</h2>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
-                Campus-wide drive health, placement conversion metrics, and system diagnostics.
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="mb-8">
+              <h2 className="font-heading text-2xl font-bold text-white">
+                Executive Placement Analytics
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Campus-wide drive conversion, CTC benchmarks, and database health.
               </p>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "32px" }}>
-              <div className="glass-panel" style={{ padding: "20px" }}>
-                <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Total Placement Offers</span>
-                <div style={{ fontSize: "1.8rem", fontWeight: 800, marginTop: "6px" }} className="gradient-text">
+            {/* Metrics */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+              <div className="glass-card rounded-2xl p-5">
+                <span className="micro-badge bg-white/5 text-slate-400">Total Offers</span>
+                <div className="font-heading text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 mt-2">
                   {adminStats.totalOffers}
                 </div>
-                <div style={{ color: "#34d399", fontSize: "0.75rem", marginTop: "4px" }}>↑ 18% increase</div>
+                <span className="text-[11px] text-emerald-400 font-semibold mt-1 block">
+                  ↑ 18% increase
+                </span>
               </div>
 
-              <div className="glass-panel" style={{ padding: "20px" }}>
-                <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Placement Rate</span>
-                <div style={{ fontSize: "1.8rem", fontWeight: 800, marginTop: "6px" }}>
+              <div className="glass-card rounded-2xl p-5">
+                <span className="micro-badge bg-white/5 text-slate-400">Placement Rate</span>
+                <div className="font-heading text-3xl font-bold text-white mt-2">
                   {adminStats.placementRate}
                 </div>
-                <div style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginTop: "4px" }}>138 students placed</div>
+                <span className="text-[11px] text-slate-400 mt-1 block">138 students placed</span>
               </div>
 
-              <div className="glass-panel" style={{ padding: "20px" }}>
-                <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Average Package</span>
-                <div style={{ fontSize: "1.8rem", fontWeight: 800, marginTop: "6px" }}>{adminStats.averagePackage}</div>
-                <div style={{ color: "#818cf8", fontSize: "0.75rem", marginTop: "4px" }}>Highest: {adminStats.highestPackage}</div>
+              <div className="glass-card rounded-2xl p-5">
+                <span className="micro-badge bg-white/5 text-slate-400">Average Package</span>
+                <div className="font-heading text-3xl font-bold text-white mt-2">
+                  {adminStats.averagePackage}
+                </div>
+                <span className="text-[11px] text-indigo-400 font-semibold mt-1 block">
+                  Highest: {adminStats.highestPackage}
+                </span>
               </div>
 
-              <div className="glass-panel" style={{ padding: "20px" }}>
-                <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Active Hiring Drives</span>
-                <div style={{ fontSize: "1.8rem", fontWeight: 800, marginTop: "6px" }}>{drives.length}</div>
-                <div style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginTop: "4px" }}>Tech & Cloud</div>
+              <div className="glass-card rounded-2xl p-5">
+                <span className="micro-badge bg-white/5 text-slate-400">Active Drives</span>
+                <div className="font-heading text-3xl font-bold text-white mt-2">
+                  {drives.length}
+                </div>
+                <span className="text-[11px] text-purple-400 font-semibold mt-1 block">
+                  Live in portal
+                </span>
               </div>
             </div>
+
+            {/* Applicant Roster */}
+            <ApplicantTable
+              applications={applications}
+              studentProfile={profile}
+              onUpdateStatus={handleUpdateStatus}
+            />
           </div>
         )}
       </main>
 
-      {/* MODAL: POST DRIVE */}
+      {/* RAYCAST / COMMAND+K QUICK SEARCH MODAL */}
+      {isSearchModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-md pt-20 px-4"
+          onClick={() => setIsSearchModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#111827] shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3.5">
+              <Search size={18} className="text-slate-400" />
+              <input
+                type="text"
+                autoFocus
+                placeholder="Type to search placement drives, companies, or CTC..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 outline-none"
+              />
+              <kbd className="rounded bg-white/10 px-2 py-0.5 text-[10px] text-slate-400">
+                ESC
+              </kbd>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto p-2">
+              {drives.slice(0, 4).map((d) => (
+                <div
+                  key={d.id}
+                  onClick={() => {
+                    setSelectedDriveModal(d);
+                    setIsSearchModalOpen(false);
+                  }}
+                  className="flex items-center justify-between rounded-xl px-3 py-2.5 text-xs hover:bg-white/[0.05] cursor-pointer transition-colors"
+                >
+                  <div>
+                    <div className="font-bold text-white">{d.companyName}</div>
+                    <div className="text-slate-400 text-[11px]">{d.title}</div>
+                  </div>
+                  <span className="micro-badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    {d.ctc}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POST DRIVE MODAL */}
       {isPostDriveOpen && (
-        <div className="modal-backdrop" onClick={() => setIsPostDriveOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: "28px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h2 style={{ fontSize: "1.3rem", fontWeight: 800 }}>Create Recruitment Drive</h2>
-              <button onClick={() => setIsPostDriveOpen(false)} style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer" }}>
-                <X size={22} />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
+          onClick={() => setIsPostDriveOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+              <h3 className="font-heading text-lg font-bold text-white">Create Recruitment Drive</h3>
+              <button onClick={() => setIsPostDriveOpen(false)} className="text-slate-400 hover:text-white">
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateDrive} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <form onSubmit={handleCreateDrive} className="flex flex-col gap-4 text-xs">
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>Company Name *</label>
+                <label className="block text-slate-400 mb-1 font-medium">Company Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Google, Atlassian, Microsoft"
+                  placeholder="e.g. Google, Atlassian"
                   value={newDriveForm.companyName}
                   onChange={(e) => setNewDriveForm({ ...newDriveForm, companyName: e.target.value })}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+                  className="w-full rounded-xl border border-white/10 bg-slate-900 px-3.5 py-2 text-white outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>Job Role Title *</label>
+                <label className="block text-slate-400 mb-1 font-medium">Job Title *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Software Development Engineer - I"
                   value={newDriveForm.title}
                   onChange={(e) => setNewDriveForm({ ...newDriveForm, title: e.target.value })}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+                  className="w-full rounded-xl border border-white/10 bg-slate-900 px-3.5 py-2 text-white outline-none focus:border-indigo-500"
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>CTC Package *</label>
+                  <label className="block text-slate-400 mb-1 font-medium">CTC Package *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. 24 LPA"
+                    placeholder="e.g. 28 LPA"
                     value={newDriveForm.ctc}
                     onChange={(e) => setNewDriveForm({ ...newDriveForm, ctc: e.target.value })}
-                    style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+                    className="w-full rounded-xl border border-white/10 bg-slate-900 px-3.5 py-2 text-white outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>Minimum CGPA</label>
+                  <label className="block text-slate-400 mb-1 font-medium">Minimum CGPA</label>
                   <input
                     type="number"
                     step="0.1"
-                    min="0"
-                    max="10"
                     value={newDriveForm.minCgpa}
                     onChange={(e) => setNewDriveForm({ ...newDriveForm, minCgpa: e.target.value })}
-                    style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+                    className="w-full rounded-xl border border-white/10 bg-slate-900 px-3.5 py-2 text-white outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>Allowed Branches (Comma separated)</label>
+                <label className="block text-slate-400 mb-1 font-medium">Allowed Branches (Comma separated)</label>
                 <input
                   type="text"
                   value={newDriveForm.allowedBranches}
                   onChange={(e) => setNewDriveForm({ ...newDriveForm, allowedBranches: e.target.value })}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+                  className="w-full rounded-xl border border-white/10 bg-slate-900 px-3.5 py-2 text-white outline-none focus:border-indigo-500"
                 />
               </div>
 
-              <div>
-                <label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>Job Description</label>
-                <textarea
-                  rows={3}
-                  value={newDriveForm.description}
-                  onChange={(e) => setNewDriveForm({ ...newDriveForm, description: e.target.value })}
-                  placeholder="Key responsibilities and qualifications..."
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", resize: "vertical" }}
-                />
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "8px" }}>
+              <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsPostDriveOpen(false)}
-                  style={{ padding: "10px 18px", background: "rgba(255, 255, 255, 0.08)", border: "none", borderRadius: "10px", color: "#fff", cursor: "pointer" }}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-slate-300 hover:bg-white/10"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="gradient-btn" style={{ padding: "10px 22px" }}>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 font-semibold text-white shadow-glow hover:from-indigo-500 hover:to-purple-500"
+                >
                   Publish Drive
                 </button>
               </div>
@@ -1092,55 +552,58 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL: DRIVE DETAILS */}
+      {/* DRIVE DETAILS MODAL */}
       {selectedDriveModal && (
-        <div className="modal-backdrop" onClick={() => setSelectedDriveModal(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: "28px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
+          onClick={() => setSelectedDriveModal(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-2xl text-xs"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b border-white/10 pb-4 mb-4">
               <div>
-                <span style={{ color: "var(--accent-cyan)", fontSize: "0.85rem", fontWeight: 700 }}>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">
                   {selectedDriveModal.companyName}
                 </span>
-                <h2 style={{ fontSize: "1.4rem", fontWeight: 800 }}>{selectedDriveModal.title}</h2>
+                <h3 className="font-heading text-lg font-bold text-white mt-0.5">
+                  {selectedDriveModal.title}
+                </h3>
               </div>
-              <button
-                onClick={() => setSelectedDriveModal(null)}
-                style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer" }}
-              >
-                <X size={22} />
+              <button onClick={() => setSelectedDriveModal(null)} className="text-slate-400 hover:text-white">
+                <X size={18} />
               </button>
             </div>
 
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "20px" }}>
-              <span className="badge badge-emerald">{selectedDriveModal.ctc}</span>
-              <span className="badge badge-indigo">Min CGPA: {selectedDriveModal.minCgpa}</span>
-              <span className="badge badge-indigo">Max Backlogs: {selectedDriveModal.maxBacklogs}</span>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <span className="micro-badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                {selectedDriveModal.ctc}
+              </span>
+              <span className="micro-badge bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                Min CGPA: {selectedDriveModal.minCgpa}
+              </span>
+              <span className="micro-badge bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                Max Backlogs: {selectedDriveModal.maxBacklogs}
+              </span>
             </div>
 
-            <div style={{ marginBottom: "20px" }}>
-              <h4 style={{ fontSize: "0.95rem", color: "var(--text-muted)", marginBottom: "8px" }}>Job Description</h4>
-              <p style={{ color: "#e5e7eb", fontSize: "0.9rem", lineHeight: 1.6 }}>{selectedDriveModal.description}</p>
+            <div className="mb-4">
+              <span className="text-slate-400 font-semibold block mb-1">Description</span>
+              <p className="text-slate-300 leading-relaxed">{selectedDriveModal.description}</p>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+            <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => setSelectedDriveModal(null)}
-                style={{
-                  padding: "10px 18px",
-                  background: "rgba(255, 255, 255, 0.08)",
-                  border: "none",
-                  borderRadius: "10px",
-                  color: "#fff",
-                  cursor: "pointer",
-                }}
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-slate-300 hover:bg-white/10"
               >
                 Close
               </button>
               {role === "STUDENT" && (
                 <button
                   onClick={() => handleApply(selectedDriveModal)}
-                  className="gradient-btn"
-                  style={{ padding: "10px 22px" }}
+                  className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 font-semibold text-white shadow-glow hover:from-indigo-500 hover:to-purple-500"
                 >
                   Confirm & Apply
                 </button>

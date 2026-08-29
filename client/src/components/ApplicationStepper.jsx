@@ -1,10 +1,7 @@
 import React from "react";
 import { Check, Clock, Calendar, Award, XCircle } from "lucide-react";
 
-/**
- * Standard candidate pipeline stages
- */
-const STEPS = [
+const STAGES = [
   { key: "APPLIED", label: "Applied", icon: Clock },
   { key: "SHORTLISTED", label: "Shortlisted", icon: Check },
   { key: "INTERVIEW_SCHEDULED", label: "Interview", sublabel: "Scheduled", icon: Calendar },
@@ -12,166 +9,92 @@ const STEPS = [
 ];
 
 /**
- * ApplicationStepper Component
- * Clean, responsive multi-stage pipeline stepper with collision-free label typography.
- *
- * @param {string} currentStatus - 'APPLIED' | 'SHORTLISTED' | 'INTERVIEW_SCHEDULED' | 'OFFERED' | 'REJECTED'
+ * Modern Linear-Inspired Timeline Stepper
+ * Fully responsive with zero text wrapping bugs and glowing progress tracks.
  */
 export default function ApplicationStepper({ currentStatus }) {
   if (currentStatus === "REJECTED") {
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          padding: "12px 16px",
-          borderRadius: "10px",
-          background: "rgba(244, 63, 94, 0.12)",
-          border: "1px solid rgba(244, 63, 94, 0.3)",
-          color: "#fb7185",
-          fontSize: "0.85rem",
-          marginTop: "14px",
-        }}
-      >
-        <XCircle size={18} />
+      <div className="mt-4 flex items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-rose-300 text-xs font-medium backdrop-blur-md">
+        <XCircle size={16} className="text-rose-400 shrink-0" />
         <div>
-          <span style={{ fontWeight: 700 }}>Application Closed:</span> Not shortlisted for further rounds.
+          <span className="font-bold text-rose-200">Application Closed:</span> Not shortlisted for the next interview stage.
         </div>
       </div>
     );
   }
 
-  const currentIndex = STEPS.findIndex((s) => s.key === currentStatus);
-  const activeIdx = currentIndex === -1 ? 0 : currentIndex;
-  const progressPercent = (activeIdx / (STEPS.length - 1)) * 100;
+  const activeIdx = Math.max(
+    0,
+    STAGES.findIndex((s) => s.key === currentStatus)
+  );
+  const progressPercent = (activeIdx / (STAGES.length - 1)) * 100;
 
   return (
-    <div style={{ width: "100%", marginTop: "18px", padding: "8px 4px" }}>
-      {/* Stepper Track Container */}
-      <div style={{ position: "relative", marginBottom: "28px" }}>
-        {/* Background Grey Track */}
-        <div
-          style={{
-            position: "absolute",
-            top: "16px",
-            left: "5%",
-            right: "5%",
-            height: "3px",
-            background: "rgba(255, 255, 255, 0.1)",
-            zIndex: 1,
-            borderRadius: "4px",
-          }}
-        />
+    <div className="w-full pt-4 pb-2">
+      <div className="relative">
+        {/* Background Track Line */}
+        <div className="absolute top-[18px] left-[6%] right-[6%] h-[2px] bg-white/[0.08] rounded-full z-0" />
 
-        {/* Dynamic Gradient Active Progress Line */}
+        {/* Active Gradient Line */}
         <div
-          style={{
-            position: "absolute",
-            top: "16px",
-            left: "5%",
-            width: `${progressPercent * 0.9}%`,
-            height: "3px",
-            background: "linear-gradient(90deg, #6366f1 0%, #a855f7 50%, #10b981 100%)",
-            zIndex: 2,
-            borderRadius: "4px",
-            transition: "width 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
-          }}
+          className="absolute top-[18px] left-[6%] h-[2px] bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 rounded-full z-0 transition-all duration-500 ease-out shadow-glow"
+          style={{ width: `${progressPercent * 0.88}%` }}
         />
 
         {/* Stepper Nodes */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            position: "relative",
-            zIndex: 3,
-          }}
-        >
-          {STEPS.map((step, idx) => {
-            const isCompleted = idx < activeIdx;
+        <div className="relative z-10 flex justify-between items-start">
+          {STAGES.map((stage, idx) => {
+            const isPassed = idx < activeIdx;
             const isCurrent = idx === activeIdx;
-            const StepIcon = step.icon;
+            const Icon = stage.icon;
 
             return (
               <div
-                key={step.key}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  width: "80px",
-                  textAlign: "center",
-                }}
+                key={stage.key}
+                className="flex flex-col items-center text-center w-24 sm:w-28 select-none"
               >
-                {/* Step Circle */}
+                {/* Node Circle */}
                 <div
-                  style={{
-                    width: "34px",
-                    height: "34px",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: isCurrent
-                      ? "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)"
-                      : isCompleted
-                      ? "#10b981"
-                      : "rgba(17, 24, 39, 0.9)",
-                    border: isCurrent
-                      ? "2px solid #a5b4fc"
-                      : isCompleted
-                      ? "2px solid #34d399"
-                      : "2px solid rgba(255, 255, 255, 0.15)",
-                    boxShadow: isCurrent
-                      ? "0 0 16px rgba(99, 102, 241, 0.6)"
-                      : isCompleted
-                      ? "0 0 10px rgba(16, 185, 129, 0.4)"
-                      : "none",
-                    color: isCurrent || isCompleted ? "#fff" : "var(--text-dim)",
-                    transition: "all 0.3s ease",
-                  }}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full border transition-all duration-300 ${
+                    isCurrent
+                      ? "border-indigo-400 bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-glow ring-4 ring-indigo-500/20 scale-105"
+                      : isPassed
+                      ? "border-emerald-400 bg-emerald-500 text-white shadow-glow-emerald"
+                      : "border-white/10 bg-slate-900 text-slate-500"
+                  }`}
                 >
-                  {isCompleted ? (
-                    <Check size={16} strokeWidth={3} />
+                  {isPassed ? (
+                    <Check size={16} strokeWidth={2.5} />
                   ) : (
-                    <StepIcon size={16} />
+                    <Icon size={15} />
                   )}
                 </div>
 
-                {/* Step Typography (Collision-Proof & Non-wrapping) */}
-                <div
-                  style={{
-                    marginTop: "8px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                {/* Node Typography */}
+                <div className="mt-2.5 flex flex-col items-center whitespace-nowrap">
                   <span
-                    style={{
-                      fontSize: "0.75rem",
-                      fontWeight: isCurrent ? 700 : isCompleted ? 600 : 500,
-                      color: isCurrent
-                        ? "#e0e7ff"
-                        : isCompleted
-                        ? "#d1fae5"
-                        : "var(--text-dim)",
-                      letterSpacing: "0.01em",
-                    }}
+                    className={`text-xs font-semibold transition-colors ${
+                      isCurrent
+                        ? "text-indigo-300 font-bold"
+                        : isPassed
+                        ? "text-emerald-300"
+                        : "text-slate-500"
+                    }`}
                   >
-                    {step.label}
+                    {stage.label}
                   </span>
-                  {step.sublabel && (
+                  {stage.sublabel && (
                     <span
-                      style={{
-                        fontSize: "0.68rem",
-                        color: isCurrent ? "#a5b4fc" : isCompleted ? "#6ee7b7" : "var(--text-dim)",
-                        lineHeight: 1.1,
-                      }}
+                      className={`text-[10px] leading-tight ${
+                        isCurrent
+                          ? "text-indigo-400 font-medium"
+                          : isPassed
+                          ? "text-emerald-400"
+                          : "text-slate-600"
+                      }`}
                     >
-                      {step.sublabel}
+                      {stage.sublabel}
                     </span>
                   )}
                 </div>
