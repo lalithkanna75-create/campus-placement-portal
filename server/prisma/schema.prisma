@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Enums
+// -----------------------------------------------------------------------------
+
+enum Role {
+  STUDENT
+  RECRUITER
+  ADMIN
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  INTERVIEW_SCHEDULED
+  OFFERED
+  REJECTED
+}
+
+// -----------------------------------------------------------------------------
+// Models
+// -----------------------------------------------------------------------------
+
+model User {
+  id           String          @id @default(uuid())
+  email        String          @unique
+  passwordHash String
+  role         Role            @default(STUDENT)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  // 1-to-1 Relation with StudentProfile (if role == STUDENT)
+  profile      StudentProfile?
+
+  // 1-to-Many Relation: Job drives posted by Recruiter/Admin
+  jobDrives    JobDrive[]      @relation("RecruiterJobDrives")
+
+  // 1-to-Many Relation: Applications submitted by Student
+  applications Application[]   @relation("StudentApplications")
+
+  @@index([email])
+  @@index([role])
+}
+
+model StudentProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  fullName          String
+  rollNumber        String   @unique
+  department        String
+  cgpa              Float
+  tenthPercentage   Float
+  twelfthPercentage Float
+  activeBacklogs    Int      @default(0)
+  resumeUrl         String?
+  skills            String[] @default([])
+  phone             String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([department])
+  @@index([cgpa])
+  @@index([activeBacklogs])
+}
+
+model JobDrive {
+  id              String        @id @default(uuid())
+  title           String
+  companyName     String
+  description     String        @db.Text
+  ctc             String        // e.g. "12 LPA" or "12,00,000 INR"
+  location        String
+  minCgpa         Float         @default(0.0)
+  allowedBranches String[]      @default([])
+  maxBacklogs     Int           @default(0)
+  deadline        DateTime
+
+  createdById     String
+  createdBy       User          @relation("RecruiterJobDrives", fields: [createdById], references: [id], onDelete: Restrict)
+
+  applications    Application[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([companyName])
+  @@index([deadline])
+  @@index([createdById])
+}
+
+model Application {
+  id         String            @id @default(uuid())
+  
+  studentId  String
+  student    User              @relation("StudentApplications", fields: [studentId], references: [id], onDelete: Cascade)
+  
+  jobDriveId String
+  jobDrive   JobDrive          @relation(fields: [jobDriveId], references: [id], onDelete: Cascade)
+  
+  status     ApplicationStatus @default(APPLIED)
+  appliedAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  // A student can apply to a job drive only once
+  @@unique([studentId, jobDriveId])
+  @@index([studentId])
+  @@index([jobDriveId])
+  @@index([status])
+}
