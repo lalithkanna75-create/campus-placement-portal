@@ -4,19 +4,13 @@ import {
   Filter,
   Briefcase,
   Sparkles,
-  Command,
-  X,
-  PlusCircle,
-  Clock,
-  MapPin,
-  CheckCircle2,
 } from "lucide-react";
 import MetricsRibbon from "../components/MetricsRibbon";
 import DriveCard from "../components/DriveCard";
 import ApplicationStepper from "../components/ApplicationStepper";
 
 /**
- * Modern Linear/Raycast-Inspired Student Placement Portal Dashboard
+ * Modern Bright / Light Theme Student Placement Portal Dashboard
  */
 export default function StudentDashboard({
   profile,
@@ -61,35 +55,35 @@ export default function StudentDashboard({
       />
 
       {/* Main Tab Segmented Control */}
-      <div className="flex items-center justify-between border-b border-white/[0.08] pb-4 mb-6">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6">
         <div className="flex items-center gap-6">
           <button
             onClick={() => setActiveTab("drives")}
-            className={`font-heading text-sm font-bold pb-2 transition-all relative ${
+            className={`font-heading text-sm font-extrabold pb-2 transition-all relative ${
               activeTab === "drives"
-                ? "text-indigo-400 after:absolute after:bottom-[-17px] after:left-0 after:right-0 after:h-[2px] after:bg-indigo-500 after:shadow-glow"
-                : "text-slate-400 hover:text-slate-200"
+                ? "text-indigo-600 after:absolute after:bottom-[-17px] after:left-0 after:right-0 after:h-[2px] after:bg-indigo-600"
+                : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            Placement Drives ({displayedDrives.length})
+            ACTIVE DRIVES ({displayedDrives.length})
           </button>
 
           <button
             onClick={() => setActiveTab("applications")}
-            className={`font-heading text-sm font-bold pb-2 transition-all relative ${
+            className={`font-heading text-sm font-extrabold pb-2 transition-all relative ${
               activeTab === "applications"
-                ? "text-indigo-400 after:absolute after:bottom-[-17px] after:left-0 after:right-0 after:h-[2px] after:bg-indigo-500 after:shadow-glow"
-                : "text-slate-400 hover:text-slate-200"
+                ? "text-indigo-600 after:absolute after:bottom-[-17px] after:left-0 after:right-0 after:h-[2px] after:bg-indigo-600"
+                : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            My Application Pipeline ({applications.length})
+            MY APPLICATIONS STATUS ({applications.length})
           </button>
         </div>
 
         {/* Live Filter Counter */}
-        <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>Matching Eligibility: CSE, IT, ECE</span>
+        <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-600">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Eligibility: CSE, IT, ECE</span>
         </div>
       </div>
 
@@ -105,10 +99,10 @@ export default function StudentDashboard({
               />
               <input
                 type="text"
-                placeholder="Search company, job role, CTC..."
+                placeholder="Search company, job title, CTC..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-slate-900/70 py-2.5 pl-10 pr-4 text-xs text-white placeholder:text-slate-500 outline-none focus:border-indigo-500 transition-all shadow-inner"
+                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-xs font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-500 shadow-xs transition-all"
               />
             </div>
 
@@ -118,7 +112,7 @@ export default function StudentDashboard({
               <select
                 value={selectedBranch}
                 onChange={(e) => onSelectBranch(e.target.value)}
-                className="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2.5 text-xs text-slate-200 outline-none focus:border-indigo-500 cursor-pointer"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-500 shadow-xs cursor-pointer"
               >
                 <option value="ALL">All Departments</option>
                 <option value="Computer Science">Computer Science</option>
@@ -154,10 +148,10 @@ export default function StudentDashboard({
       {activeTab === "applications" && (
         <div className="flex flex-col gap-4">
           {applications.length === 0 ? (
-            <div className="glass-card flex flex-col items-center justify-center rounded-2xl p-12 text-center">
-              <Briefcase size={36} className="text-slate-500 mb-3" />
-              <p className="text-sm font-semibold text-slate-300">No applications yet</p>
-              <p className="text-xs text-slate-500 mt-1">
+            <div className="glass-card flex flex-col items-center justify-center rounded-2xl p-12 text-center border border-slate-200 bg-white shadow-soft">
+              <Briefcase size={36} className="text-slate-400 mb-3" />
+              <p className="text-sm font-bold text-slate-700">No applications yet</p>
+              <p className="text-xs text-slate-500 mt-1 font-medium">
                 Browse active drives and apply with 1-click.
               </p>
             </div>
@@ -169,31 +163,31 @@ export default function StudentDashboard({
               const location = app.location || app.jobDrive?.location || "Bangalore, India";
 
               return (
-                <div key={app.id} className="glass-card rounded-2xl p-6">
+                <div key={app.id} className="glass-card rounded-2xl p-6 border border-slate-200 bg-white shadow-soft">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
                         {company}
                       </span>
-                      <h3 className="font-heading text-lg font-bold text-white mt-0.5">
+                      <h3 className="font-heading text-lg font-bold text-slate-900 mt-0.5">
                         {title}
                       </h3>
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-xs text-slate-500 font-medium mt-1">
                         Applied on {new Date(app.appliedAt).toLocaleDateString()} • {location}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2.5">
-                      <span className="micro-badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-glow-emerald">
+                      <span className="micro-badge bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold shadow-xs">
                         {ctc}
                       </span>
-                      <span className="micro-badge bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                        Stage: {app.status}
+                      <span className="micro-badge bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold">
+                        {app.status}
                       </span>
                     </div>
                   </div>
 
-                  {/* Modern Stepper Timeline */}
+                  {/* Clean Light Stepper Timeline */}
                   <ApplicationStepper currentStatus={app.status} />
                 </div>
               );

@@ -1,19 +1,19 @@
 import React from "react";
-import { Download, User, CheckCircle2, Clock, Calendar, Award, XCircle } from "lucide-react";
+import { Download } from "lucide-react";
 
 /**
- * Status color mappings
+ * Status badge colors in bright theme
  */
 const STATUS_COLORS = {
-  APPLIED: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  SHORTLISTED: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  INTERVIEW_SCHEDULED: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  OFFERED: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  REJECTED: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+  APPLIED: "bg-amber-50 text-amber-800 border-amber-200",
+  SHORTLISTED: "bg-blue-50 text-blue-800 border-blue-200",
+  INTERVIEW_SCHEDULED: "bg-purple-50 text-purple-800 border-purple-200",
+  OFFERED: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  REJECTED: "bg-rose-50 text-rose-800 border-rose-200",
 };
 
 /**
- * Modern Linear-inspired Applicant Management Table with CSV Export
+ * Modern Bright Theme Applicant Table with CSV Export
  */
 export default function ApplicantTable({
   applications = [],
@@ -21,7 +21,6 @@ export default function ApplicantTable({
   onUpdateStatus,
   onExportCSV,
 }) {
-  // Export CSV handler
   const handleExport = () => {
     if (onExportCSV) {
       onExportCSV();
@@ -49,40 +48,40 @@ export default function ApplicantTable({
   };
 
   return (
-    <div className="glass-card overflow-hidden rounded-2xl">
+    <div className="glass-card overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
       {/* Table Header Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-4 bg-slate-50/50">
         <div>
-          <h3 className="font-heading text-base font-bold text-white">
+          <h3 className="font-heading text-base font-bold text-slate-900">
             Applicant Pipeline Roster
           </h3>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500 font-medium">
             Real-time candidate tracking across all company placement drives.
           </p>
         </div>
 
         <button
           onClick={handleExport}
-          className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-semibold text-slate-200 hover:bg-white/[0.08] hover:border-white/20 transition-all cursor-pointer"
+          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer shadow-xs"
         >
-          <Download size={14} className="text-indigo-400" />
+          <Download size={14} className="text-indigo-600" />
           <span>Export to CSV</span>
         </button>
       </div>
 
-      {/* Responsive Table Grid */}
+      {/* Responsive Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
-          <thead className="bg-slate-900/60 text-slate-400 border-b border-white/[0.05]">
+          <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
             <tr>
-              <th className="px-6 py-3.5 font-semibold">Candidate</th>
-              <th className="px-6 py-3.5 font-semibold">Drive / Company</th>
-              <th className="px-6 py-3.5 font-semibold">Package</th>
-              <th className="px-6 py-3.5 font-semibold">Current Stage</th>
-              <th className="px-6 py-3.5 font-semibold text-right">Pipeline Action</th>
+              <th className="px-6 py-3.5 font-bold">Candidate</th>
+              <th className="px-6 py-3.5 font-bold">Drive / Company</th>
+              <th className="px-6 py-3.5 font-bold">Package</th>
+              <th className="px-6 py-3.5 font-bold">Current Stage</th>
+              <th className="px-6 py-3.5 font-bold text-right">Pipeline Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/[0.04]">
+          <tbody className="divide-y divide-slate-100">
             {applications.map((app) => {
               const company = app.companyName || app.jobDrive?.companyName || "Google";
               const title = app.title || app.jobDrive?.title || "SDE";
@@ -91,16 +90,16 @@ export default function ApplicantTable({
               const rollNumber = studentProfile?.rollNumber || "CS2023001";
 
               return (
-                <tr key={app.id} className="hover:bg-white/[0.02] transition-colors">
+                <tr key={app.id} className="hover:bg-slate-50/80 transition-colors">
                   {/* Candidate Info */}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 font-bold text-white text-xs">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-indigo-700 font-bold text-white text-xs shadow-xs">
                         {candidateName.charAt(0)}
                       </div>
                       <div>
-                        <div className="font-semibold text-slate-100">{candidateName}</div>
-                        <div className="text-[11px] text-slate-400 font-mono">
+                        <div className="font-bold text-slate-900">{candidateName}</div>
+                        <div className="text-[11px] text-slate-500 font-mono font-medium">
                           {rollNumber} • {studentProfile?.cgpa || 8.85} CGPA
                         </div>
                       </div>
@@ -109,13 +108,13 @@ export default function ApplicantTable({
 
                   {/* Company & Role */}
                   <td className="px-6 py-4">
-                    <div className="font-semibold text-white">{company}</div>
-                    <div className="text-[11px] text-slate-400">{title}</div>
+                    <div className="font-bold text-slate-900">{company}</div>
+                    <div className="text-[11px] text-slate-500 font-medium">{title}</div>
                   </td>
 
                   {/* Package */}
                   <td className="px-6 py-4">
-                    <span className="micro-badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span className="micro-badge bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
                       {ctc}
                     </span>
                   </td>
@@ -123,8 +122,8 @@ export default function ApplicantTable({
                   {/* Stage Badge */}
                   <td className="px-6 py-4">
                     <span
-                      className={`micro-badge border ${
-                        STATUS_COLORS[app.status] || "bg-slate-500/10 text-slate-300 border-slate-500/20"
+                      className={`micro-badge border font-bold ${
+                        STATUS_COLORS[app.status] || "bg-slate-100 text-slate-700 border-slate-200"
                       }`}
                     >
                       {app.status}
@@ -136,7 +135,7 @@ export default function ApplicantTable({
                     <select
                       value={app.status}
                       onChange={(e) => onUpdateStatus(app.id, e.target.value)}
-                      className="rounded-lg border border-white/10 bg-slate-900/90 px-2.5 py-1.5 text-xs text-slate-200 outline-none hover:border-indigo-500/50 focus:border-indigo-500 cursor-pointer"
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 outline-none hover:border-indigo-400 focus:border-indigo-600 cursor-pointer shadow-xs"
                     >
                       <option value="APPLIED">Applied</option>
                       <option value="SHORTLISTED">Shortlisted</option>
