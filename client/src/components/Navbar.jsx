@@ -1,17 +1,46 @@
 import React from "react";
 import {
-  Briefcase,
   GraduationCap,
   Building2,
   ShieldCheck,
   Search,
   Command,
-  Activity,
-  User,
+  TrendingUp,
 } from "lucide-react";
 
 /**
- * Modern Bright / Light Theme Navbar
+ * Custom Stylized Brand Logo Icon for NexPlacement
+ */
+function BrandLogoMark() {
+  return (
+    <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-purple-600 shadow-md shadow-indigo-500/25 ring-1 ring-white/20">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-5 h-5 text-white"
+      >
+        <path
+          d="M4 18L10 6L14 13L20 6"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="20" cy="6" r="2.5" fill="#38BDF8" />
+        <path
+          d="M4 18H8"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
+/**
+ * Modern Bright / Light Theme Navbar with Custom Brand Mark
  */
 export default function Navbar({
   role,
@@ -27,17 +56,15 @@ export default function Navbar({
     <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/85 backdrop-blur-xl shadow-xs transition-all">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         
-        {/* Brand & Logo */}
+        {/* Custom Brand Logo & Title */}
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 shadow-sm shadow-indigo-500/30">
-            <Briefcase size={18} className="text-white" />
-          </div>
+          <BrandLogoMark />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-heading text-lg font-extrabold tracking-tight text-slate-900">
                 NexPlacement
               </span>
-              <span className="micro-badge bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+              <span className="micro-badge bg-indigo-50 text-indigo-700 border border-indigo-200/80 font-bold">
                 PRO
               </span>
             </div>
@@ -49,7 +76,7 @@ export default function Navbar({
 
         {/* Center: Search Trigger & Role Switcher */}
         <div className="flex items-center gap-3">
-          {/* Quick Search Button */}
+          {/* Quick Search Button (Command + K) */}
           <div
             onClick={onOpenSearchModal}
             className="hidden md:flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-1.5 text-xs text-slate-500 hover:border-slate-300 hover:text-slate-800 hover:bg-white cursor-pointer transition-all shadow-xs"
@@ -61,11 +88,11 @@ export default function Navbar({
             </kbd>
           </div>
 
-          {/* Segmented Pill Control */}
+          {/* Segmented Role Switcher */}
           <div className="flex items-center rounded-xl border border-slate-200/90 bg-slate-100/90 p-1 shadow-inner">
             <button
               onClick={() => onRoleChange("STUDENT")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${
                 role === "STUDENT"
                   ? "bg-white text-indigo-700 shadow-sm font-bold"
                   : "text-slate-600 hover:text-slate-900"
@@ -77,7 +104,7 @@ export default function Navbar({
 
             <button
               onClick={() => onRoleChange("RECRUITER")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${
                 role === "RECRUITER"
                   ? "bg-white text-indigo-700 shadow-sm font-bold"
                   : "text-slate-600 hover:text-slate-900"
@@ -89,7 +116,7 @@ export default function Navbar({
 
             <button
               onClick={() => onRoleChange("ADMIN")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${
                 role === "ADMIN"
                   ? "bg-white text-indigo-700 shadow-sm font-bold"
                   : "text-slate-600 hover:text-slate-900"
@@ -101,9 +128,9 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Right Section: API Health & Profile Pill */}
+        {/* Right Section: API Health & Student Profile Pill */}
         <div className="flex items-center gap-3">
-          {/* Health Status Indicator */}
+          {/* Health Status */}
           <div
             onClick={onCheckHealth}
             title="Click to ping Express + Supabase API"
@@ -133,7 +160,7 @@ export default function Navbar({
             )}
           </div>
 
-          {/* Student Profile Pill */}
+          {/* Student Profile */}
           {role === "STUDENT" && profile && (
             <div className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white py-1 pl-1.5 pr-3.5 shadow-xs">
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-indigo-700 text-[11px] font-bold text-white shadow-xs">

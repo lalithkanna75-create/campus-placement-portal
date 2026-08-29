@@ -6,49 +6,36 @@ import {
   XCircle,
   ChevronRight,
 } from "lucide-react";
+import CompanyLogo from "./CompanyLogo";
 
 /**
- * Company Color palette generator for logo monograms
- */
-const getCompanyBadgeColor = (name = "") => {
-  const char = name.charAt(0).toUpperCase();
-  if (["G", "A", "M"].includes(char)) return "from-indigo-600 to-blue-600";
-  if (["M", "N", "O"].includes(char)) return "from-purple-600 to-pink-600";
-  return "from-emerald-600 to-teal-600";
-};
-
-/**
- * Modern Bright / Light Theme Placement Drive Card
+ * Modern Bright / Light Theme Placement Drive Card with Official Company Logos
  */
 export default function DriveCard({ drive, applied, onSelectDetails, onApply }) {
   const isEligible = drive.isEligible !== false;
   const ineligibilityReason = drive.ineligibilityReasons?.[0] || "Requirements not met";
 
   return (
-    <div className="glass-card-interactive group relative flex flex-col justify-between rounded-2xl p-6 border border-slate-200/80 bg-white">
+    <div className="glass-card-interactive group relative flex flex-col justify-between rounded-2xl p-6 border border-slate-200/80 bg-white shadow-soft">
       <div>
-        {/* Card Header: Company Monogram + Title + CTC Badge */}
+        {/* Card Header: Official Company Logo + Title + CTC Badge */}
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3.5">
-            <div
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${getCompanyBadgeColor(
-                drive.companyName
-              )} text-sm font-bold text-white shadow-sm`}
-            >
-              {drive.companyName ? drive.companyName.substring(0, 2).toUpperCase() : "CO"}
-            </div>
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+          <div className="flex items-center gap-3.5 min-w-0">
+            {/* Dynamic Company Logo */}
+            <CompanyLogo companyName={drive.companyName} size="md" />
+
+            <div className="min-w-0">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 block truncate">
                 {drive.companyName}
               </span>
-              <h3 className="font-heading text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
+              <h3 className="font-heading text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
                 {drive.title}
               </h3>
             </div>
           </div>
 
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <span className="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200 shadow-xs">
+            <span className="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-700 border border-emerald-200 shadow-xs">
               {drive.ctc}
             </span>
           </div>
