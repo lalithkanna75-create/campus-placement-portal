@@ -1,6 +1,6 @@
 # NexPlacement — Campus Recruitment & Placement Drive Portal
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-black?style=for-the-badge&logo=vercel)](https://campus-placement-portal.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-black?style=for-the-badge&logo=vercel)](https://campus-placement-portal-phi.vercel.app)
 [![API Status](https://img.shields.io/badge/API_Status-Render-46E3B7?style=for-the-badge&logo=render)](https://nexplacement-api.onrender.com/api/health)
 [![Database](https://img.shields.io/badge/Database-Supabase_PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com)
 [![React](https://img.shields.io/badge/Frontend-React_18_%2B_Vite-61DAFB?style=for-the-badge&logo=react)](https://react.dev)
@@ -15,7 +15,7 @@
 
 | Component | Platform | URL |
 | :--- | :--- | :--- |
-| **Frontend Web App** | **Vercel** | [https://campus-placement-portal.vercel.app](https://campus-placement-portal.vercel.app) |
+| **Frontend Web App** | **Vercel** | [https://campus-placement-portal-phi.vercel.app](https://campus-placement-portal-phi.vercel.app) |
 | **Backend REST API** | **Render** | [https://nexplacement-api.onrender.com](https://nexplacement-api.onrender.com) |
 | **API Health Check** | **Render** | [https://nexplacement-api.onrender.com/api/health](https://nexplacement-api.onrender.com/api/health) |
 | **Relational Database** | **Supabase** | `PostgreSQL 15 (AWS ap-south-1)` |
