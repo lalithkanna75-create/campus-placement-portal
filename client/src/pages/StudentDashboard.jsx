@@ -8,6 +8,7 @@ import {
 import MetricsRibbon from "../components/MetricsRibbon";
 import DriveCard from "../components/DriveCard";
 import ApplicationStepper from "../components/ApplicationStepper";
+import ResumeUploadCard from "../components/ResumeUploadCard";
 
 /**
  * Modern Bright / Light Theme Student Placement Portal Dashboard
@@ -22,6 +23,8 @@ export default function StudentDashboard({
   onSelectBranch,
   onApply,
   onSelectDriveModal,
+  onResumeUpdated,
+  showToast,
 }) {
   const [activeTab, setActiveTab] = useState("drives"); // 'drives' | 'applications'
 
@@ -54,12 +57,19 @@ export default function StudentDashboard({
         drivesCount={drives.length}
       />
 
+      {/* Resume Upload & PDF Verification Card */}
+      <ResumeUploadCard
+        profile={profile}
+        onResumeUpdated={onResumeUpdated}
+        showToast={showToast}
+      />
+
       {/* Main Tab Segmented Control */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6">
         <div className="flex items-center gap-6">
           <button
             onClick={() => setActiveTab("drives")}
-            className={`font-heading text-sm font-extrabold pb-2 transition-all relative ${
+            className={`font-heading text-sm font-extrabold pb-2 transition-all relative cursor-pointer ${
               activeTab === "drives"
                 ? "text-indigo-600 after:absolute after:bottom-[-17px] after:left-0 after:right-0 after:h-[2px] after:bg-indigo-600"
                 : "text-slate-500 hover:text-slate-800"
@@ -70,7 +80,7 @@ export default function StudentDashboard({
 
           <button
             onClick={() => setActiveTab("applications")}
-            className={`font-heading text-sm font-extrabold pb-2 transition-all relative ${
+            className={`font-heading text-sm font-extrabold pb-2 transition-all relative cursor-pointer ${
               activeTab === "applications"
                 ? "text-indigo-600 after:absolute after:bottom-[-17px] after:left-0 after:right-0 after:h-[2px] after:bg-indigo-600"
                 : "text-slate-500 hover:text-slate-800"

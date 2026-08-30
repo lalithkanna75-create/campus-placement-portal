@@ -4,6 +4,7 @@
  */
 
 const API_BASE_URL = "http://localhost:5000/api";
+export const BACKEND_URL = "http://localhost:5000";
 
 // Local storage key for JWT
 const TOKEN_KEY = "nex_auth_token";
@@ -34,8 +35,10 @@ export const clearStoredAuth = () => {
  */
 async function request(endpoint, options = {}) {
   const token = getStoredToken();
+  const isFormData = options.body instanceof FormData;
+
   const headers = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
@@ -48,10 +51,17 @@ async function request(endpoint, options = {}) {
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+
+    // If file download (e.g. CSV stream)
+    if (response.headers.get("content-type")?.includes("text/csv")) {
+      const blob = await response.blob();
+      return blob;
+    }
+
     const data = await response.json();
 
     if (!response.ok) {
-      const errorMsg = data?.error?.message || `Request failed with status ${response.status}`;
+      const errorMsg = data?.error?.message || data?.message || `Request failed with status ${response.status}`;
       const err = new Error(errorMsg);
       err.status = response.status;
       err.details = data?.error?.details;
@@ -109,6 +119,27 @@ export const authApi = {
 };
 
 // -----------------------------------------------------------------------------
+// Student Resume & Profile API Endpoints
+// -----------------------------------------------------------------------------
+export const studentsApi = {
+  uploadResume: async (file) => {
+    const formData = new FormData();
+    formData.append("resume", file);
+
+    const res = await request("/students/upload-resume", {
+      method: "POST",
+      body: formData,
+    });
+    return res.data;
+  },
+
+  getProfile: async () => {
+    const res = await request("/students/profile");
+    return res.data?.profile;
+  },
+};
+
+// -----------------------------------------------------------------------------
 // Job Drives API Endpoints
 // -----------------------------------------------------------------------------
 export const drivesApi = {
@@ -133,6 +164,19 @@ export const drivesApi = {
       body: JSON.stringify(driveData),
     });
     return res.data?.drive;
+  },
+
+  exportApplicantsCsv: async (driveId, driveTitle = "drive") => {
+    const blob = await request(`/drives/${driveId}/export-csv`);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safeTitle = driveTitle.replace(/[^a-zA-Z0-9_-]/g, "_");
+    a.download = `applicants-${safeTitle}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
   },
 };
 

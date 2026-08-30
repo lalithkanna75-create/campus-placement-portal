@@ -1,5 +1,6 @@
-import React from "react";
-import { Download } from "lucide-react";
+import React, { useState } from "react";
+import { Download, FileText, ExternalLink, Loader2 } from "lucide-react";
+import { BACKEND_URL } from "../services/api";
 
 /**
  * Status badge colors in bright theme
@@ -13,7 +14,7 @@ const STATUS_COLORS = {
 };
 
 /**
- * Modern Bright Theme Applicant Table with CSV Export
+ * Modern Bright Theme Applicant Table with 1-Click CSV Export & Resume Viewing
  */
 export default function ApplicantTable({
   applications = [],
@@ -21,30 +22,55 @@ export default function ApplicantTable({
   onUpdateStatus,
   onExportCSV,
 }) {
-  const handleExport = () => {
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
     if (onExportCSV) {
-      onExportCSV();
+      setExporting(true);
+      try {
+        await onExportCSV();
+      } finally {
+        setExporting(false);
+      }
       return;
     }
 
-    const headers = "Student Name,Roll Number,Company,Role,CTC,Status,Applied Date\n";
+    // Default fallback CSV generator
+    const headers = "Student Name,Roll Number,Email,Department,CGPA,Company,Role,CTC,Status,Applied Date,Resume URL\n";
     const rows = applications
-      .map(
-        (app) =>
-          `"${studentProfile?.fullName || "Alex Sharma"}","${studentProfile?.rollNumber || "CS2023001"}","${
-            app.companyName || app.jobDrive?.companyName
-          }","${app.title || app.jobDrive?.title}","${app.ctc || app.jobDrive?.ctc}","${
-            app.status
-          }","${new Date(app.appliedAt).toLocaleDateString()}"`
-      )
+      .map((app) => {
+        const p = app.student?.profile || studentProfile;
+        const candidateName = p?.fullName || "Alex Sharma";
+        const rollNumber = p?.rollNumber || "CS2023001";
+        const email = app.student?.email || "alex.sharma@student.edu";
+        const dept = p?.department || "Computer Science";
+        const cgpa = p?.cgpa || 8.85;
+        const company = app.companyName || app.jobDrive?.companyName || "N/A";
+        const title = app.title || app.jobDrive?.title || "N/A";
+        const ctc = app.ctc || app.jobDrive?.ctc || "N/A";
+        const status = app.status || "APPLIED";
+        const date = new Date(app.appliedAt).toISOString().split("T")[0];
+        const resume = p?.resumeUrl ? `${BACKEND_URL}${p.resumeUrl}` : "Not Uploaded";
+
+        return `"${candidateName}","${rollNumber}","${email}","${dept}","${cgpa}","${company}","${title}","${ctc}","${status}","${date}","${resume}"`;
+      })
       .join("\n");
 
-    const blob = new Blob([headers + rows], { type: "text/csv" });
+    const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `Placement_Applicants_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const getResumeLink = (app) => {
+    const resumeUrl = app.student?.profile?.resumeUrl || studentProfile?.resumeUrl;
+    if (!resumeUrl) return null;
+    return resumeUrl.startsWith("http") ? resumeUrl : `${BACKEND_URL}${resumeUrl}`;
   };
 
   return (
@@ -56,16 +82,22 @@ export default function ApplicantTable({
             Applicant Pipeline Roster
           </h3>
           <p className="text-xs text-slate-500 font-medium">
-            Real-time candidate tracking across all company placement drives.
+            Real-time candidate tracking, resume reviews, and 1-click CSV reports.
           </p>
         </div>
 
+        {/* 1-Click CSV Export */}
         <button
           onClick={handleExport}
-          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer shadow-xs"
+          disabled={exporting}
+          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer shadow-xs disabled:opacity-50"
         >
-          <Download size={14} className="text-indigo-600" />
-          <span>Export to CSV</span>
+          {exporting ? (
+            <Loader2 size={14} className="text-indigo-600 animate-spin" />
+          ) : (
+            <Download size={14} className="text-indigo-600" />
+          )}
+          <span>{exporting ? "Generating CSV..." : "Export to CSV"}</span>
         </button>
       </div>
 
@@ -77,17 +109,20 @@ export default function ApplicantTable({
               <th className="px-6 py-3.5 font-bold">Candidate</th>
               <th className="px-6 py-3.5 font-bold">Drive / Company</th>
               <th className="px-6 py-3.5 font-bold">Package</th>
+              <th className="px-6 py-3.5 font-bold">Resume</th>
               <th className="px-6 py-3.5 font-bold">Current Stage</th>
               <th className="px-6 py-3.5 font-bold text-right">Pipeline Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {applications.map((app) => {
+              const p = app.student?.profile || studentProfile;
               const company = app.companyName || app.jobDrive?.companyName || "Google";
               const title = app.title || app.jobDrive?.title || "SDE";
               const ctc = app.ctc || app.jobDrive?.ctc || "24 LPA";
-              const candidateName = studentProfile?.fullName || "Alex Sharma";
-              const rollNumber = studentProfile?.rollNumber || "CS2023001";
+              const candidateName = p?.fullName || "Alex Sharma";
+              const rollNumber = p?.rollNumber || "CS2023001";
+              const resumeLink = getResumeLink(app);
 
               return (
                 <tr key={app.id} className="hover:bg-slate-50/80 transition-colors">
@@ -100,7 +135,7 @@ export default function ApplicantTable({
                       <div>
                         <div className="font-bold text-slate-900">{candidateName}</div>
                         <div className="text-[11px] text-slate-500 font-mono font-medium">
-                          {rollNumber} • {studentProfile?.cgpa || 8.85} CGPA
+                          {rollNumber} • {p?.cgpa || 8.85} CGPA
                         </div>
                       </div>
                     </div>
@@ -117,6 +152,26 @@ export default function ApplicantTable({
                     <span className="micro-badge bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
                       {ctc}
                     </span>
+                  </td>
+
+                  {/* Resume View Action */}
+                  <td className="px-6 py-4">
+                    {resumeLink ? (
+                      <a
+                        href={resumeLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/80 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 transition-all shadow-xs"
+                      >
+                        <FileText size={12} />
+                        <span>View PDF</span>
+                        <ExternalLink size={10} />
+                      </a>
+                    ) : (
+                      <span className="text-[11px] text-slate-400 font-medium italic">
+                        Not uploaded
+                      </span>
+                    )}
                   </td>
 
                   {/* Stage Badge */}

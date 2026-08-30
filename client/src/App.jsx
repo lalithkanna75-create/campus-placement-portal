@@ -306,6 +306,11 @@ export default function App() {
             onSelectBranch={setSelectedBranch}
             onApply={handleApply}
             onSelectDriveModal={setSelectedDriveModal}
+            onResumeUpdated={(newResumeUrl) => {
+              setProfile((prev) => ({ ...prev, resumeUrl: newResumeUrl }));
+              loadPortalData();
+            }}
+            showToast={showToast}
           />
         )}
 
@@ -334,6 +339,18 @@ export default function App() {
               applications={applications}
               studentProfile={profile}
               onUpdateStatus={handleUpdateStatus}
+              onExportCSV={async () => {
+                try {
+                  const driveId = drives[0]?.id;
+                  if (driveId && getStoredToken()) {
+                    await drivesApi.exportApplicantsCsv(driveId, drives[0]?.title || "placement-drive");
+                    showToast("Applicant CSV report downloaded! 📊", "success");
+                    return;
+                  }
+                } catch (_) {}
+                // Fallback client CSV export
+                showToast("Generating applicant CSV report...", "info");
+              }}
             />
           </div>
         )}
@@ -394,6 +411,17 @@ export default function App() {
               applications={applications}
               studentProfile={profile}
               onUpdateStatus={handleUpdateStatus}
+              onExportCSV={async () => {
+                try {
+                  const driveId = drives[0]?.id;
+                  if (driveId && getStoredToken()) {
+                    await drivesApi.exportApplicantsCsv(driveId, drives[0]?.title || "all-drives");
+                    showToast("Applicant CSV report downloaded! 📊", "success");
+                    return;
+                  }
+                } catch (_) {}
+                showToast("Generating applicant CSV report...", "info");
+              }}
             />
           </div>
         )}

@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { Parser } = require("json2csv");
 const prisma = require("../config/prisma");
 
 const driveValidationSchema = z.object({
@@ -243,10 +244,87 @@ const deleteDrive = async (req, res, next) => {
   }
 };
 
+// GET /api/drives/:id/export-csv (Recruiter & Admin only)
+const exportDriveApplicantsCSV = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const drive = await prisma.jobDrive.findUnique({
+      where: { id },
+      include: {
+        applications: {
+          include: {
+            student: {
+              include: {
+                profile: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!drive) {
+      return res.status(404).json({
+        success: false,
+        error: { message: "Placement drive not found." },
+      });
+    }
+
+    const rows = drive.applications.map((app) => {
+      const p = app.student?.profile;
+      const host = req.get("host") || "localhost:5000";
+      const protocol = req.protocol || "http";
+      const resumeLink = p?.resumeUrl
+        ? (p.resumeUrl.startsWith("http") ? p.resumeUrl : `${protocol}://${host}${p.resumeUrl}`)
+        : "Not Uploaded";
+
+      return {
+        "Candidate Name": p?.fullName || "N/A",
+        "Roll Number": p?.rollNumber || "N/A",
+        "Email": app.student?.email || "N/A",
+        "Department": p?.department || "N/A",
+        "CGPA": p?.cgpa ?? "N/A",
+        "Active Backlogs": p?.activeBacklogs ?? 0,
+        "10th Percentage": p?.tenthPercentage ? `${p.tenthPercentage}%` : "N/A",
+        "12th Percentage": p?.twelfthPercentage ? `${p.twelfthPercentage}%` : "N/A",
+        "Application Status": app.status,
+        "Applied Date": new Date(app.appliedAt).toISOString().split("T")[0],
+        "Resume URL": resumeLink,
+      };
+    });
+
+    const fields = [
+      "Candidate Name",
+      "Roll Number",
+      "Email",
+      "Department",
+      "CGPA",
+      "Active Backlogs",
+      "10th Percentage",
+      "12th Percentage",
+      "Application Status",
+      "Applied Date",
+      "Resume URL",
+    ];
+
+    const json2csvParser = new Parser({ fields });
+    const csv = json2csvParser.parse(rows);
+
+    const safeTitle = drive.title.replace(/[^a-zA-Z0-9_-]/g, "_");
+    res.header("Content-Type", "text/csv");
+    res.attachment(`applicants-${safeTitle}.csv`);
+    return res.send(csv);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDrives,
   getDriveById,
   createDrive,
   updateDrive,
   deleteDrive,
+  exportDriveApplicantsCSV,
 };
