@@ -9,7 +9,7 @@ node_modules/
 **/.env
 **/.env.local
 
-# Production Build
+# Production Build Artifacts
 dist/
 dist-ssr/
 *.local
@@ -22,6 +22,10 @@ pnpm-debug.log*
 lerna-debug.log*
 *.log
 
-# OS files
+# Uploaded Resumes (Keep folder structure)
+server/uploads/resumes/*
+!server/uploads/resumes/.gitkeep
+
+# OS generated files
 .DS_Store
 Thumbs.db
