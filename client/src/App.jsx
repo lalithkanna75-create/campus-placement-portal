@@ -250,19 +250,27 @@ export default function App() {
     showToast(`Drive for ${drivePayload.companyName} created!`, "success");
   };
 
-  const handleUpdateStatus = async (appId, newStatus) => {
+  const handleUpdateStatus = async (appId, statusPayload) => {
+    const payload = typeof statusPayload === "string" ? { status: statusPayload } : statusPayload;
     try {
       if (getStoredToken()) {
-        await applicationsApi.updateStatus(appId, newStatus);
+        await applicationsApi.updateStatus(appId, payload);
       }
     } catch (_) {}
 
     setApplications(
       applications.map((app) =>
-        app.id === appId ? { ...app, status: newStatus } : app
+        app.id === appId
+          ? {
+              ...app,
+              status: payload.status,
+              interviewDate: payload.interviewDate !== undefined ? payload.interviewDate : app.interviewDate,
+              feedbackNotes: payload.feedbackNotes !== undefined ? payload.feedbackNotes : app.feedbackNotes,
+            }
+          : app
       )
     );
-    showToast(`Candidate stage updated to ${newStatus}`, "success");
+    showToast(`Candidate stage updated to ${payload.status}! 🚀`, "success");
   };
 
   return (
