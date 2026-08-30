@@ -128,6 +128,7 @@ const uploadStudentResume = async (req, res, next) => {
         resumeUrl,
         filename: req.file.originalname,
         fileSize: req.file.size,
+        storageMode: process.env.STORAGE_DRIVER || "LOCAL_DISK",
         profile: updatedProfile,
       },
     });

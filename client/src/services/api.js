@@ -3,10 +3,19 @@
  * Centralized Fetch wrapper with Bearer token injection, auto error handling, and demo auto-login helpers.
  */
 
-const API_BASE_URL = "http://localhost:5000/api";
-export const BACKEND_URL = "http://localhost:5000";
+// Dynamically read VITE_API_BASE_URL from environment with fallback to localhost:5000
+const RAW_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const SANITIZED_URL = RAW_URL.replace(/\/+$/, ""); // Remove trailing slashes
 
-// Local storage key for JWT
+export const BACKEND_URL = SANITIZED_URL.endsWith("/api")
+  ? SANITIZED_URL.slice(0, -4)
+  : SANITIZED_URL;
+
+const API_BASE_URL = SANITIZED_URL.endsWith("/api")
+  ? SANITIZED_URL
+  : `${SANITIZED_URL}/api`;
+
+// Local storage keys for JWT and user session
 const TOKEN_KEY = "nex_auth_token";
 const USER_KEY = "nex_auth_user";
 
@@ -31,7 +40,7 @@ export const clearStoredAuth = () => {
 };
 
 /**
- * Core Request helper with Bearer token injection
+ * Core Request helper with Bearer token injection and CORS credentials
  */
 async function request(endpoint, options = {}) {
   const token = getStoredToken();
