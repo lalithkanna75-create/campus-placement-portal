@@ -137,6 +137,14 @@ export const studentsApi = {
     const res = await request("/students/profile");
     return res.data?.profile;
   },
+
+  saveProfile: async (profileData) => {
+    const res = await request("/students/profile", {
+      method: "POST",
+      body: JSON.stringify(profileData),
+    });
+    return res.data;
+  },
 };
 
 // -----------------------------------------------------------------------------
@@ -201,10 +209,11 @@ export const applicationsApi = {
     return res.data?.applications || [];
   },
 
-  updateStatus: async (applicationId, status) => {
+  updateStatus: async (applicationId, statusPayload) => {
+    const body = typeof statusPayload === "string" ? { status: statusPayload } : statusPayload;
     const res = await request(`/applications/${applicationId}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(body),
     });
     return res.data?.application;
   },

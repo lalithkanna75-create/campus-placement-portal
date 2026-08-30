@@ -4,11 +4,15 @@ const { uploadResume } = require("../middleware/uploadMiddleware");
 const {
   uploadStudentResume,
   getStudentProfile,
+  upsertStudentProfile,
 } = require("../controllers/studentController");
 
 const router = express.Router();
 
 // Protected: Student Only
+router.post("/profile", protect, authorize("STUDENT"), upsertStudentProfile);
+router.get("/profile", protect, authorize("STUDENT"), getStudentProfile);
+
 router.post(
   "/upload-resume",
   protect,
@@ -26,7 +30,5 @@ router.post(
   },
   uploadStudentResume
 );
-
-router.get("/profile", protect, authorize("STUDENT"), getStudentProfile);
 
 module.exports = router;

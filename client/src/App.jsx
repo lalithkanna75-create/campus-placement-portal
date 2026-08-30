@@ -14,10 +14,12 @@ import {
 import Navbar from "./components/Navbar";
 import StudentDashboard from "./pages/StudentDashboard";
 import ApplicantTable from "./components/ApplicantTable";
+import ProfileSetupModal from "./components/ProfileSetupModal";
 import {
   authApi,
   drivesApi,
   applicationsApi,
+  studentsApi,
   checkHealthApi,
   getStoredToken,
 } from "./services/api";
@@ -60,6 +62,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("ALL");
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Health check state
   const [serverHealth, setServerHealth] = useState({
@@ -286,6 +289,7 @@ export default function App() {
         role={role}
         onRoleChange={handleRoleSwitch}
         profile={profile}
+        onEditProfile={() => setIsProfileModalOpen(true)}
         serverHealth={serverHealth}
         onCheckHealth={checkHealth}
         searchQuery={searchQuery}
@@ -632,6 +636,18 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* STUDENT PROFILE SETUP MODAL */}
+      <ProfileSetupModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        initialProfile={profile}
+        onProfileSaved={(updatedProfile) => {
+          setProfile(updatedProfile);
+          loadPortalData();
+        }}
+        showToast={showToast}
+      />
     </div>
   );
 }

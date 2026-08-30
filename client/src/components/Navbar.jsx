@@ -46,6 +46,7 @@ export default function Navbar({
   role,
   onRoleChange,
   profile,
+  onEditProfile,
   serverHealth,
   onCheckHealth,
   searchQuery,
@@ -160,9 +161,13 @@ export default function Navbar({
             )}
           </div>
 
-          {/* Student Profile */}
+          {/* Student Profile Pill (Click to Edit) */}
           {role === "STUDENT" && profile && (
-            <div className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white py-1 pl-1.5 pr-3.5 shadow-xs">
+            <div
+              onClick={onEditProfile}
+              title="Click to edit academic profile & eligibility criteria"
+              className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white py-1 pl-1.5 pr-3.5 shadow-xs hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all"
+            >
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-indigo-700 text-[11px] font-bold text-white shadow-xs">
                 {profile.fullName?.charAt(0) || "A"}
               </div>

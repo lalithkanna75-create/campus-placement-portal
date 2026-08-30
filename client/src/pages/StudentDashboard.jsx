@@ -198,7 +198,11 @@ export default function StudentDashboard({
                   </div>
 
                   {/* Clean Light Stepper Timeline */}
-                  <ApplicationStepper currentStatus={app.status} />
+                  <ApplicationStepper
+                    currentStatus={app.status}
+                    interviewDate={app.interviewDate}
+                    feedbackNotes={app.feedbackNotes}
+                  />
                 </div>
               );
             })

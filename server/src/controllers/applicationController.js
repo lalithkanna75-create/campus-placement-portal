@@ -1,5 +1,6 @@
 const { z } = require("zod");
 const prisma = require("../config/prisma");
+const { sendStatusUpdateEmail } = require("../utils/emailService");
 
 const statusSchema = z.object({
   status: z.enum([
@@ -9,6 +10,8 @@ const statusSchema = z.object({
     "OFFERED",
     "REJECTED",
   ]),
+  interviewDate: z.string().optional().nullable(),
+  feedbackNotes: z.string().optional().nullable(),
 });
 
 // POST /api/applications/apply/:driveId (Student only)
@@ -33,7 +36,8 @@ const applyForDrive = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         error: {
-          message: "Please complete your student profile before applying to drives.",
+          code: "PROFILE_INCOMPLETE",
+          message: "Please complete your academic profile before applying to placement drives.",
         },
       });
     }
@@ -180,11 +184,19 @@ const getDriveApplications = async (req, res, next) => {
 const updateApplicationStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status } = statusSchema.parse(req.body);
+    const { status, interviewDate, feedbackNotes } = statusSchema.parse(req.body);
+
+    const updateData = { status };
+    if (interviewDate !== undefined) {
+      updateData.interviewDate = interviewDate ? new Date(interviewDate) : null;
+    }
+    if (feedbackNotes !== undefined) {
+      updateData.feedbackNotes = feedbackNotes;
+    }
 
     const application = await prisma.application.update({
       where: { id },
-      data: { status },
+      data: updateData,
       include: {
         student: {
           select: {
@@ -197,6 +209,17 @@ const updateApplicationStatus = async (req, res, next) => {
       },
     });
 
+    // Trigger Non-Blocking Automated Email Alert
+    sendStatusUpdateEmail({
+      studentEmail: application.student?.email,
+      studentName: application.student?.profile?.fullName || "Student",
+      companyName: application.jobDrive?.companyName || "Company",
+      roleTitle: application.jobDrive?.title || "Role",
+      newStatus: status,
+      feedbackNotes: application.feedbackNotes,
+      interviewDate: application.interviewDate,
+    }).catch((err) => console.warn("[EmailService Hook Error]:", err.message));
+
     return res.status(200).json({
       success: true,
       message: `Candidate stage updated to ${status}`,
@@ -206,7 +229,7 @@ const updateApplicationStatus = async (req, res, next) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         success: false,
-        error: { message: "Invalid status value provided" },
+        error: { message: "Invalid status or date input", details: error.errors.map((e) => e.message) },
       });
     }
     next(error);
