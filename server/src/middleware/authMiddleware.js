@@ -1,6 +1,17 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
 
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("CRITICAL: JWT secret configuration is missing in production.");
+    }
+    return "campus_portal_dev_jwt_access_secret_key_12345";
+  }
+  return secret;
+};
+
 /**
  * Middleware to verify JWT token from Authorization header or cookie
  * and attach req.user with profile details.
@@ -20,10 +31,7 @@ const protect = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_ACCESS_SECRET || "campus_portal_dev_jwt_access_secret_key_12345"
-    );
+    const decoded = jwt.verify(token, getJwtSecret());
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
@@ -70,10 +78,7 @@ const optionalAuth = async (req, res, next) => {
         : null) || req.cookies?.accessToken;
 
     if (token) {
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_ACCESS_SECRET || "campus_portal_dev_jwt_access_secret_key_12345"
-      );
+      const decoded = jwt.verify(token, getJwtSecret());
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
         select: {
@@ -113,4 +118,5 @@ module.exports = {
   protect,
   optionalAuth,
   authorize,
+  getJwtSecret,
 };

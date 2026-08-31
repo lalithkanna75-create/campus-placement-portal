@@ -112,7 +112,7 @@ const getDrives = async (req, res, next) => {
   }
 };
 
-// GET /api/drives/:id
+// GET /api/drives/:id (Public - drive details without applicant PII)
 const getDriveById = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -123,16 +123,8 @@ const getDriveById = async (req, res, next) => {
         createdBy: {
           select: { id: true, email: true },
         },
-        applications: {
-          include: {
-            student: {
-              select: {
-                id: true,
-                email: true,
-                profile: true,
-              },
-            },
-          },
+        _count: {
+          select: { applications: true },
         },
       },
     });
@@ -144,9 +136,16 @@ const getDriveById = async (req, res, next) => {
       });
     }
 
+    const { _count, ...driveData } = drive;
+
     return res.status(200).json({
       success: true,
-      data: { drive },
+      data: {
+        drive: {
+          ...driveData,
+          applicantsCount: _count.applications,
+        },
+      },
     });
   } catch (error) {
     next(error);
@@ -192,10 +191,23 @@ const createDrive = async (req, res, next) => {
   }
 };
 
+const updateDriveValidationSchema = z.object({
+  title: z.string().min(3).optional(),
+  companyName: z.string().min(2).optional(),
+  description: z.string().min(10).optional(),
+  ctc: z.string().min(1).optional(),
+  location: z.string().min(1).optional(),
+  minCgpa: z.number().min(0).max(10).optional(),
+  allowedBranches: z.array(z.string()).optional(),
+  maxBacklogs: z.number().int().min(0).optional(),
+  deadline: z.string().refine((d) => !isNaN(Date.parse(d)), "Invalid ISO date string").optional(),
+});
+
 // PUT /api/drives/:id
 const updateDrive = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const validated = updateDriveValidationSchema.parse(req.body);
 
     const existing = await prisma.jobDrive.findUnique({ where: { id } });
     if (!existing) {
@@ -212,12 +224,20 @@ const updateDrive = async (req, res, next) => {
       });
     }
 
+    const updateData = {};
+    if (validated.title !== undefined) updateData.title = validated.title;
+    if (validated.companyName !== undefined) updateData.companyName = validated.companyName;
+    if (validated.description !== undefined) updateData.description = validated.description;
+    if (validated.ctc !== undefined) updateData.ctc = validated.ctc;
+    if (validated.location !== undefined) updateData.location = validated.location;
+    if (validated.minCgpa !== undefined) updateData.minCgpa = validated.minCgpa;
+    if (validated.allowedBranches !== undefined) updateData.allowedBranches = validated.allowedBranches;
+    if (validated.maxBacklogs !== undefined) updateData.maxBacklogs = validated.maxBacklogs;
+    if (validated.deadline !== undefined) updateData.deadline = new Date(validated.deadline);
+
     const drive = await prisma.jobDrive.update({
       where: { id },
-      data: {
-        ...req.body,
-        ...(req.body.deadline && { deadline: new Date(req.body.deadline) }),
-      },
+      data: updateData,
     });
 
     return res.status(200).json({
@@ -226,6 +246,12 @@ const updateDrive = async (req, res, next) => {
       data: { drive },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Validation error", details: error.errors.map((e) => e.message) },
+      });
+    }
     next(error);
   }
 };
@@ -271,12 +297,20 @@ const exportDriveApplicantsCSV = async (req, res, next) => {
       });
     }
 
+    // Recruiter Ownership Authorization: Recruiters may only export drives they authored
+    if (req.user.role !== "ADMIN" && drive.createdById !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: { message: "Unauthorized: You can only export applicants for drives you created." },
+      });
+    }
+
     const rows = drive.applications.map((app) => {
       const p = app.student?.profile;
       const host = req.get("host") || "localhost:5000";
       const protocol = req.protocol || "http";
       const resumeLink = p?.resumeUrl
-        ? (p.resumeUrl.startsWith("http") ? p.resumeUrl : `${protocol}://${host}${p.resumeUrl}`)
+        ? `${protocol}://${host}/api/students/resume/${app.studentId}`
         : "Not Uploaded";
 
       return {

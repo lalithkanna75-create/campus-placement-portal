@@ -5,7 +5,9 @@ import {
   ShieldCheck,
   Search,
   Command,
-  TrendingUp,
+  LogIn,
+  LogOut,
+  User,
 } from "lucide-react";
 
 /**
@@ -40,12 +42,13 @@ function BrandLogoMark() {
 }
 
 /**
- * Modern Bright / Light Theme Navbar with Custom Brand Mark
+ * Modern Bright / Light Theme Navbar with Authenticated Role Session
  */
 export default function Navbar({
-  role,
-  onRoleChange,
+  currentUser,
   profile,
+  onOpenAuthModal,
+  onLogout,
   onEditProfile,
   serverHealth,
   onCheckHealth,
@@ -53,6 +56,8 @@ export default function Navbar({
   onSearchChange,
   onOpenSearchModal,
 }) {
+  const role = currentUser?.role || "GUEST";
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/85 backdrop-blur-xl shadow-xs transition-all">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
@@ -75,7 +80,7 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Center: Search Trigger & Role Switcher */}
+        {/* Center: Search Trigger & Active Authenticated Session Badge */}
         <div className="flex items-center gap-3">
           {/* Quick Search Button (Command + K) */}
           <div
@@ -89,48 +94,29 @@ export default function Navbar({
             </kbd>
           </div>
 
-          {/* Segmented Role Switcher */}
-          <div className="flex items-center rounded-xl border border-slate-200/90 bg-slate-100/90 p-1 shadow-inner">
-            <button
-              onClick={() => onRoleChange("STUDENT")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${
-                role === "STUDENT"
-                  ? "bg-white text-indigo-700 shadow-sm font-bold"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <GraduationCap size={14} className={role === "STUDENT" ? "text-indigo-600" : "text-slate-500"} />
-              <span>Student</span>
-            </button>
-
-            <button
-              onClick={() => onRoleChange("RECRUITER")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${
-                role === "RECRUITER"
-                  ? "bg-white text-indigo-700 shadow-sm font-bold"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <Building2 size={14} className={role === "RECRUITER" ? "text-indigo-600" : "text-slate-500"} />
-              <span>Recruiter</span>
-            </button>
-
-            <button
-              onClick={() => onRoleChange("ADMIN")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 cursor-pointer ${
-                role === "ADMIN"
-                  ? "bg-white text-indigo-700 shadow-sm font-bold"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <ShieldCheck size={14} className={role === "ADMIN" ? "text-indigo-600" : "text-slate-500"} />
-              <span>Admin</span>
-            </button>
-          </div>
+          {/* Authenticated Role Indicator */}
+          {currentUser ? (
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs shadow-xs">
+              <div className="flex items-center gap-1.5">
+                {role === "STUDENT" && <GraduationCap size={14} className="text-indigo-600" />}
+                {role === "RECRUITER" && <Building2 size={14} className="text-purple-600" />}
+                {role === "ADMIN" && <ShieldCheck size={14} className="text-emerald-600" />}
+                <span className="font-bold text-slate-900">{role}</span>
+              </div>
+              <span className="text-slate-300">|</span>
+              <span className="text-slate-500 font-medium truncate max-w-[120px] sm:max-w-[160px]">
+                {currentUser.profile?.fullName || currentUser.email}
+              </span>
+            </div>
+          ) : (
+            <div className="text-xs text-slate-500 font-medium hidden sm:block">
+              Public Viewer Mode
+            </div>
+          )}
         </div>
 
-        {/* Right Section: API Health & Student Profile Pill */}
-        <div className="flex items-center gap-3">
+        {/* Right Section: API Health & Auth Buttons */}
+        <div className="flex items-center gap-2.5">
           {/* Health Status */}
           <div
             onClick={onCheckHealth}
@@ -162,24 +148,53 @@ export default function Navbar({
           </div>
 
           {/* Student Profile Pill (Click to Edit) */}
-          {role === "STUDENT" && profile && (
+          {currentUser && role === "STUDENT" && profile && (
             <div
               onClick={onEditProfile}
               title="Click to edit academic profile & eligibility criteria"
-              className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white py-1 pl-1.5 pr-3.5 shadow-xs hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all"
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1.5 pr-3 shadow-xs hover:border-indigo-300 hover:shadow-sm cursor-pointer transition-all"
             >
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-indigo-700 text-[11px] font-bold text-white shadow-xs">
                 {profile.fullName?.charAt(0) || "A"}
               </div>
-              <div className="flex flex-col text-left leading-tight">
-                <span className="text-xs font-bold text-slate-900 truncate max-w-[100px] sm:max-w-[130px]">
+              <div className="hidden sm:flex flex-col text-left leading-tight">
+                <span className="text-xs font-bold text-slate-900 truncate max-w-[100px]">
                   {profile.fullName}
                 </span>
                 <span className="text-[10px] font-semibold text-emerald-600">
-                  {profile.cgpa} CGPA • {profile.department || "CS"}
+                  {profile.cgpa} CGPA
                 </span>
               </div>
             </div>
+          )}
+
+          {/* Login / Switch Account Button */}
+          {currentUser ? (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={onOpenAuthModal}
+                title="Switch Authenticated Account"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer shadow-xs"
+              >
+                <User size={13} />
+                <span className="hidden sm:inline">Switch</span>
+              </button>
+              <button
+                onClick={onLogout}
+                title="Log out of session"
+                className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 cursor-pointer shadow-xs"
+              >
+                <LogOut size={13} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onOpenAuthModal}
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-indigo-500/25 hover:from-indigo-700 hover:to-indigo-800 cursor-pointer"
+            >
+              <LogIn size={13} />
+              <span>Sign In</span>
+            </button>
           )}
         </div>
       </div>

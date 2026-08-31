@@ -6,6 +6,17 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
+    // Validate JWT configuration
+    const jwtSecret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET;
+    if (!jwtSecret) {
+      if (process.env.NODE_ENV === "production") {
+        console.error("FATAL: JWT_SECRET or JWT_ACCESS_SECRET environment variable is missing in production.");
+        process.exit(1);
+      } else {
+        console.warn("⚠️ [Security Warning] JWT secret is not configured; using dev fallback.");
+      }
+    }
+
     // Verify DB Connection on startup
     await prisma.$connect();
     console.log("✅ [Database] PostgreSQL connected successfully via Prisma");

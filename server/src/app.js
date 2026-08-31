@@ -9,7 +9,6 @@ const healthRoutes = require("./routes/health.routes");
 const authRoutes = require("./routes/authRoutes");
 const driveRoutes = require("./routes/driveRoutes");
 const applicationRoutes = require("./routes/applicationRoutes");
-const profileRoutes = require("./routes/profile.routes");
 const studentRoutes = require("./routes/studentRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
@@ -29,18 +28,22 @@ app.use(
 // Gzip Compression for Fast Payloads
 app.use(compression());
 
-// Production Multi-Origin CORS Configuration
-const allowedOrigins = (process.env.CORS_ORIGIN || "")
+// Production Multi-Origin CORS Configuration with Strict Allowlist
+const rawOrigins = process.env.CORS_ORIGIN || "";
+const configuredOrigins = rawOrigins
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
 
-const defaultOrigins = [
+const defaultDevOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
   "http://localhost:5174",
   "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000",
 ];
+
+const allowedOriginsList = Array.from(new Set([...configuredOrigins, ...defaultDevOrigins]));
 
 app.use(
   cors({
@@ -48,17 +51,17 @@ app.use(
       // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
 
-      // Check configured origins or Vercel deployment preview domains
       const isAllowed =
-        allowedOrigins.includes(origin) ||
-        defaultOrigins.includes(origin) ||
+        allowedOriginsList.includes(origin) ||
         origin.endsWith(".vercel.app") ||
         origin.endsWith(".onrender.com");
 
       if (isAllowed) {
         callback(null, true);
       } else {
-        callback(null, true); // Permissive fallback to prevent deployment blocks
+        const error = new Error(`CORS blocked request from origin: ${origin}`);
+        error.status = 403;
+        callback(error);
       }
     },
     credentials: true,
@@ -71,23 +74,13 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
-// Static Asset Serving with Cache-Control for Uploaded Resumes
-app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "../uploads"), {
-    maxAge: "1d",
-    setHeaders: (res) => {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-    },
-  })
-);
+// Public uploads route removed for privacy; resumes are served via authenticated /api/students/resume/:userId
 
 // API Routes Mounting
 app.use("/api", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/drives", driveRoutes);
 app.use("/api/applications", applicationRoutes);
-app.use("/api/profile", profileRoutes);
 app.use("/api/students", studentRoutes);
 
 // Root Welcome & Health Check Route
