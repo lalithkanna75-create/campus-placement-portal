@@ -29,18 +29,22 @@ app.use(
 // Gzip Compression for Fast Payloads
 app.use(compression());
 
-// Production Multi-Origin CORS Configuration
-const allowedOrigins = (process.env.CORS_ORIGIN || "")
+// Production Multi-Origin CORS Configuration with Strict Allowlist
+const rawOrigins = process.env.CORS_ORIGIN || "";
+const configuredOrigins = rawOrigins
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
 
-const defaultOrigins = [
+const defaultDevOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
   "http://localhost:5174",
   "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000",
 ];
+
+const allowedOriginsList = Array.from(new Set([...configuredOrigins, ...defaultDevOrigins]));
 
 app.use(
   cors({
@@ -48,17 +52,17 @@ app.use(
       // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
 
-      // Check configured origins or Vercel deployment preview domains
       const isAllowed =
-        allowedOrigins.includes(origin) ||
-        defaultOrigins.includes(origin) ||
+        allowedOriginsList.includes(origin) ||
         origin.endsWith(".vercel.app") ||
         origin.endsWith(".onrender.com");
 
       if (isAllowed) {
         callback(null, true);
       } else {
-        callback(null, true); // Permissive fallback to prevent deployment blocks
+        const error = new Error(`CORS blocked request from origin: ${origin}`);
+        error.status = 403;
+        callback(error);
       }
     },
     credentials: true,
