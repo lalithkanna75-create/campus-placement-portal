@@ -6,7 +6,7 @@ const prisma = require("../config/prisma");
 const registerValidationSchema = z.object({
   email: z.string().email("Please provide a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["STUDENT", "RECRUITER", "ADMIN"]).default("STUDENT"),
+  role: z.string().optional(), // Ignored on public registration - always forced to STUDENT
   fullName: z.string().optional(),
   rollNumber: z.string().optional(),
   department: z.string().optional(),
@@ -24,21 +24,24 @@ const loginValidationSchema = z.object({
 });
 
 const createToken = (user) => {
+  const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET;
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("CRITICAL: JWT secret configuration is missing in production.");
+  }
   return jwt.sign(
     { userId: user.id, email: user.email, role: user.role },
-    process.env.JWT_ACCESS_SECRET || "campus_portal_dev_jwt_access_secret_key_12345",
+    secret || "campus_portal_dev_jwt_access_secret_key_12345",
     { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
   );
 };
 
-// POST /api/auth/register
+// POST /api/auth/register (Public - strictly creates STUDENT accounts)
 const register = async (req, res, next) => {
   try {
     const validatedData = registerValidationSchema.parse(req.body);
     const {
       email,
       password,
-      role,
       fullName,
       rollNumber,
       department,
@@ -50,6 +53,9 @@ const register = async (req, res, next) => {
       phone,
     } = validatedData;
 
+    // Security Hardening: Public registration is strictly restricted to STUDENT role
+    const assignedRole = "STUDENT";
+
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(409).json({
@@ -58,7 +64,7 @@ const register = async (req, res, next) => {
       });
     }
 
-    if (role === "STUDENT" && rollNumber) {
+    if (rollNumber) {
       const existingRoll = await prisma.studentProfile.findUnique({
         where: { rollNumber },
       });
@@ -77,8 +83,8 @@ const register = async (req, res, next) => {
       data: {
         email,
         passwordHash,
-        role,
-        ...(role === "STUDENT" && fullName && rollNumber && department
+        role: assignedRole,
+        ...(fullName && rollNumber && department
           ? {
               profile: {
                 create: {
