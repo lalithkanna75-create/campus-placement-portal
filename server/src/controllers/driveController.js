@@ -271,6 +271,14 @@ const exportDriveApplicantsCSV = async (req, res, next) => {
       });
     }
 
+    // Recruiter Ownership Authorization: Recruiters may only export drives they authored
+    if (req.user.role !== "ADMIN" && drive.createdById !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: { message: "Unauthorized: You can only export applicants for drives you created." },
+      });
+    }
+
     const rows = drive.applications.map((app) => {
       const p = app.student?.profile;
       const host = req.get("host") || "localhost:5000";

@@ -156,6 +156,25 @@ const getDriveApplications = async (req, res, next) => {
   try {
     const { driveId } = req.params;
 
+    const drive = await prisma.jobDrive.findUnique({
+      where: { id: driveId },
+    });
+
+    if (!drive) {
+      return res.status(404).json({
+        success: false,
+        error: { message: "Placement drive not found." },
+      });
+    }
+
+    // Recruiter Ownership Authorization: Recruiter can only view rosters of drives they created
+    if (req.user.role !== "ADMIN" && drive.createdById !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: { message: "Unauthorized: You can only view applicant rosters for your own drives." },
+      });
+    }
+
     const applications = await prisma.application.findMany({
       where: { jobDriveId: driveId },
       include: {
@@ -185,6 +204,26 @@ const updateApplicationStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status, interviewDate, feedbackNotes } = statusSchema.parse(req.body);
+
+    const existingApplication = await prisma.application.findUnique({
+      where: { id },
+      include: { jobDrive: true },
+    });
+
+    if (!existingApplication) {
+      return res.status(404).json({
+        success: false,
+        error: { message: "Application not found." },
+      });
+    }
+
+    // Recruiter Ownership Authorization: Recruiter can only update candidates on their own drives
+    if (req.user.role !== "ADMIN" && existingApplication.jobDrive.createdById !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: { message: "Unauthorized: You can only update candidates for drives you created." },
+      });
+    }
 
     const updateData = { status };
     if (interviewDate !== undefined) {
