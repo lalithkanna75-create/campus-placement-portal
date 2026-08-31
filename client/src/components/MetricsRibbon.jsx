@@ -20,16 +20,16 @@ export default function MetricsRibbon({ profile, applicationsCount, shortlistsCo
         </div>
         <div className="mt-3 flex items-baseline gap-2">
           <span className="font-heading text-2xl font-extrabold tracking-tight text-slate-900">
-            {profile?.cgpa || "8.85"}
+            {profile?.cgpa !== undefined && profile?.cgpa !== null ? profile.cgpa : "—"}
           </span>
           <span className="text-xs font-bold text-slate-500">CGPA</span>
         </div>
         <div className="mt-2.5 flex items-center gap-2 text-xs">
           <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-            <CheckCircle2 size={11} /> 0 Backlogs
+            <CheckCircle2 size={11} /> {profile?.activeBacklogs ?? 0} Backlogs
           </span>
           <span className="truncate text-slate-600 font-medium text-[11px]">
-            {profile?.department || "Computer Science"}
+            {profile?.department || "Not Set"}
           </span>
         </div>
       </div>

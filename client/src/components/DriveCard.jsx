@@ -69,22 +69,29 @@ export default function DriveCard({ drive, applied, onSelectDetails, onApply }) 
         </div>
 
         {/* Eligibility State Banner */}
-        <div
-          className={`mt-4 flex items-center gap-2 rounded-xl p-2.5 text-xs font-semibold border ${
-            isEligible
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-rose-50 border-rose-200 text-rose-800"
-          }`}
-        >
-          {isEligible ? (
-            <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
-          ) : (
-            <XCircle size={15} className="text-rose-600 shrink-0" />
-          )}
-          <span className="truncate">
-            {isEligible ? "ELIGIBILITY MET: You qualify for this drive" : ineligibilityReason}
-          </span>
-        </div>
+        {drive.isEligible !== undefined ? (
+          <div
+            className={`mt-4 flex items-center gap-2 rounded-xl p-2.5 text-xs font-semibold border ${
+              isEligible
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : "bg-rose-50 border-rose-200 text-rose-800"
+            }`}
+          >
+            {isEligible ? (
+              <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+            ) : (
+              <XCircle size={15} className="text-rose-600 shrink-0" />
+            )}
+            <span className="truncate">
+              {isEligible ? "ELIGIBILITY MET: You qualify for this drive" : ineligibilityReason}
+            </span>
+          </div>
+        ) : (
+          <div className="mt-4 flex items-center gap-2 rounded-xl p-2.5 text-xs font-semibold border bg-slate-50 border-slate-200 text-slate-700">
+            <Clock size={14} className="text-indigo-600 shrink-0" />
+            <span className="truncate">Open for Campus Applications</span>
+          </div>
+        )}
       </div>
 
       {/* Action CTA Buttons */}

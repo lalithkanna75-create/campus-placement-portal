@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Navbar from "./components/Navbar";
 import StudentDashboard from "./pages/StudentDashboard";
+import PublicLanding from "./pages/PublicLanding";
 import ApplicantTable from "./components/ApplicantTable";
 import ProfileSetupModal from "./components/ProfileSetupModal";
 import AuthModal from "./components/AuthModal";
@@ -52,6 +53,12 @@ export default function App() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState("LOGIN");
+
+  const openAuthModal = (mode = "LOGIN") => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  };
 
   // Health check state
   const [serverHealth, setServerHealth] = useState({
@@ -346,7 +353,22 @@ export default function App() {
         )}
 
         {/* Dynamic Authenticated Role Views */}
-        {role === "STUDENT" || role === "GUEST" ? (
+        {!currentUser ? (
+          <PublicLanding
+            drives={drives}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            selectedBranch={selectedBranch}
+            onSelectBranch={setSelectedBranch}
+            onOpenDriveModal={setSelectedDriveModal}
+            onOpenAuthModal={openAuthModal}
+            onApplyClick={(drive) => {
+              setSelectedDriveModal(drive);
+              showToast("Please sign in as a student to apply.", "info");
+              openAuthModal("LOGIN");
+            }}
+          />
+        ) : role === "STUDENT" ? (
           <StudentDashboard
             profile={profile}
             drives={drives}
@@ -356,8 +378,11 @@ export default function App() {
             selectedBranch={selectedBranch}
             onSelectBranch={setSelectedBranch}
             onApply={handleApply}
-            onOpenDriveModal={setSelectedDriveModal}
-            onUploadSuccess={(newProfile) => setProfile(newProfile)}
+            onSelectDriveModal={setSelectedDriveModal}
+            onResumeUpdated={(newProfile) => {
+              setProfile(newProfile);
+              loadPortalData();
+            }}
             showToast={showToast}
           />
         ) : role === "RECRUITER" ? (
@@ -702,6 +727,7 @@ export default function App() {
       {/* AUTH MODAL */}
       <AuthModal
         isOpen={isAuthModalOpen}
+        initialMode={authModalMode}
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={handleAuthSuccess}
         showToast={showToast}

@@ -41,10 +41,10 @@ const SEEDED_ACCOUNTS = [
   },
 ];
 
-export default function AuthModal({ isOpen, onClose, onAuthSuccess, showToast }) {
+export default function AuthModal({ isOpen, onClose, onAuthSuccess, showToast, initialMode = "LOGIN" }) {
   if (!isOpen) return null;
 
-  const [mode, setMode] = useState("LOGIN"); // 'LOGIN' | 'REGISTER'
+  const [mode, setMode] = useState(initialMode); // 'LOGIN' | 'REGISTER'
   const [loading, setLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
