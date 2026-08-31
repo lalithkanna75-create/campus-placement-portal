@@ -9,7 +9,6 @@ const healthRoutes = require("./routes/health.routes");
 const authRoutes = require("./routes/authRoutes");
 const driveRoutes = require("./routes/driveRoutes");
 const applicationRoutes = require("./routes/applicationRoutes");
-const profileRoutes = require("./routes/profile.routes");
 const studentRoutes = require("./routes/studentRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
@@ -82,7 +81,6 @@ app.use("/api", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/drives", driveRoutes);
 app.use("/api/applications", applicationRoutes);
-app.use("/api/profile", profileRoutes);
 app.use("/api/students", studentRoutes);
 
 // Root Welcome & Health Check Route

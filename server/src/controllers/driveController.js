@@ -191,10 +191,23 @@ const createDrive = async (req, res, next) => {
   }
 };
 
+const updateDriveValidationSchema = z.object({
+  title: z.string().min(3).optional(),
+  companyName: z.string().min(2).optional(),
+  description: z.string().min(10).optional(),
+  ctc: z.string().min(1).optional(),
+  location: z.string().min(1).optional(),
+  minCgpa: z.number().min(0).max(10).optional(),
+  allowedBranches: z.array(z.string()).optional(),
+  maxBacklogs: z.number().int().min(0).optional(),
+  deadline: z.string().refine((d) => !isNaN(Date.parse(d)), "Invalid ISO date string").optional(),
+});
+
 // PUT /api/drives/:id
 const updateDrive = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const validated = updateDriveValidationSchema.parse(req.body);
 
     const existing = await prisma.jobDrive.findUnique({ where: { id } });
     if (!existing) {
@@ -211,12 +224,20 @@ const updateDrive = async (req, res, next) => {
       });
     }
 
+    const updateData = {};
+    if (validated.title !== undefined) updateData.title = validated.title;
+    if (validated.companyName !== undefined) updateData.companyName = validated.companyName;
+    if (validated.description !== undefined) updateData.description = validated.description;
+    if (validated.ctc !== undefined) updateData.ctc = validated.ctc;
+    if (validated.location !== undefined) updateData.location = validated.location;
+    if (validated.minCgpa !== undefined) updateData.minCgpa = validated.minCgpa;
+    if (validated.allowedBranches !== undefined) updateData.allowedBranches = validated.allowedBranches;
+    if (validated.maxBacklogs !== undefined) updateData.maxBacklogs = validated.maxBacklogs;
+    if (validated.deadline !== undefined) updateData.deadline = new Date(validated.deadline);
+
     const drive = await prisma.jobDrive.update({
       where: { id },
-      data: {
-        ...req.body,
-        ...(req.body.deadline && { deadline: new Date(req.body.deadline) }),
-      },
+      data: updateData,
     });
 
     return res.status(200).json({
@@ -225,6 +246,12 @@ const updateDrive = async (req, res, next) => {
       data: { drive },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Validation error", details: error.errors.map((e) => e.message) },
+      });
+    }
     next(error);
   }
 };
