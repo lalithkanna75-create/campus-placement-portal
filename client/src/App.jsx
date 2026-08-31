@@ -10,11 +10,15 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
+  LogIn,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import Navbar from "./components/Navbar";
 import StudentDashboard from "./pages/StudentDashboard";
 import ApplicantTable from "./components/ApplicantTable";
 import ProfileSetupModal from "./components/ProfileSetupModal";
+import AuthModal from "./components/AuthModal";
 import {
   authApi,
   drivesApi,
@@ -22,47 +26,32 @@ import {
   studentsApi,
   checkHealthApi,
   getStoredToken,
+  clearStoredAuth,
 } from "./services/api";
-import {
-  initialStudentProfile,
-  initialDrives,
-  initialApplications,
-  initialAdminStats,
-} from "./services/mockData";
-
-const DEMO_USERS = {
-  STUDENT: {
-    email: "alex.sharma@student.edu",
-    password: "Password@123",
-    role: "STUDENT",
-    name: "Alex Sharma",
-  },
-  RECRUITER: {
-    email: "recruiter.google@placement.edu",
-    password: "Password@123",
-    role: "RECRUITER",
-    name: "Google Campus Team",
-  },
-  ADMIN: {
-    email: "admin@placement.edu",
-    password: "Password@123",
-    role: "ADMIN",
-    name: "Placement Director",
-  },
-};
 
 export default function App() {
-  const [role, setRole] = useState("STUDENT"); // 'STUDENT' | 'RECRUITER' | 'ADMIN'
-  const [profile, setProfile] = useState(initialStudentProfile);
-  const [drives, setDrives] = useState(initialDrives);
-  const [applications, setApplications] = useState(initialApplications);
-  const [adminStats, setAdminStats] = useState(initialAdminStats);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [drives, setDrives] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [adminStats, setAdminStats] = useState({
+    totalDrives: 0,
+    totalOffers: 0,
+    activeCandidates: 0,
+    averageCTC: "14.8 LPA",
+    placementPercentage: 92,
+  });
+
+  // Loading & Error states
+  const [isLoading, setIsLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("ALL");
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Health check state
   const [serverHealth, setServerHealth] = useState({
@@ -94,6 +83,8 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  const role = currentUser?.role || "GUEST";
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -124,93 +115,137 @@ export default function App() {
     }
   };
 
-  const handleRoleSwitch = async (targetRole) => {
-    setRole(targetRole);
-    const demoCreds = DEMO_USERS[targetRole];
-    if (!demoCreds) return;
+  // Initialize authenticated user session from API
+  const initUserSession = async () => {
+    const token = getStoredToken();
+    if (!token) {
+      setCurrentUser(null);
+      setProfile(null);
+      return;
+    }
 
     try {
-      const authData = await authApi.login(demoCreds.email, demoCreds.password);
-      if (authData?.user?.profile) {
-        setProfile(authData.user.profile);
+      const user = await authApi.getMe();
+      if (user) {
+        setCurrentUser(user);
+        setProfile(user.profile || null);
+      } else {
+        clearStoredAuth();
+        setCurrentUser(null);
+        setProfile(null);
       }
-      showToast(`Switched to ${demoCreds.name} (${targetRole})`, "success");
-      await loadPortalData();
-    } catch (_) {
-      showToast(`Switched role to ${targetRole}`, "info");
+    } catch (err) {
+      console.warn("Session verification failed:", err.message);
+      clearStoredAuth();
+      setCurrentUser(null);
+      setProfile(null);
     }
+  };
+
+  const handleAuthSuccess = (user) => {
+    setCurrentUser(user);
+    setProfile(user.profile || null);
+    loadPortalData();
+  };
+
+  const handleLogout = async () => {
+    await authApi.logout();
+    setCurrentUser(null);
+    setProfile(null);
+    setApplications([]);
+    showToast("Logged out successfully.", "info");
+    loadPortalData();
   };
 
   const loadPortalData = async () => {
     try {
+      setIsLoading(true);
+      setApiError(null);
+
+      // 1. Fetch Drives
       const fetchedDrives = await drivesApi.getDrives({
         search: searchQuery,
         branch: selectedBranch,
       });
-      if (fetchedDrives && fetchedDrives.length > 0) {
-        setDrives(fetchedDrives);
-      }
+      setDrives(fetchedDrives || []);
 
+      // 2. Fetch User-Authorized Applications
       if (getStoredToken()) {
-        const myApps = await applicationsApi.getMyApplications();
-        if (myApps) setApplications(myApps);
+        const userRole = currentUser?.role;
+        if (userRole === "STUDENT") {
+          const myApps = await applicationsApi.getMyApplications();
+          setApplications(myApps || []);
+        } else if (userRole === "RECRUITER" || userRole === "ADMIN") {
+          // If recruiter or admin, aggregate drive applications
+          if (fetchedDrives && fetchedDrives.length > 0) {
+            try {
+              const allDriveApps = await Promise.all(
+                fetchedDrives.map(async (d) => {
+                  try {
+                    return await applicationsApi.getDriveApplications(d.id);
+                  } catch (_) {
+                    return [];
+                  }
+                })
+              );
+              setApplications(allDriveApps.flat());
+            } catch (_) {
+              setApplications([]);
+            }
+          } else {
+            setApplications([]);
+          }
+        }
+      } else {
+        setApplications([]);
       }
     } catch (err) {
-      console.warn("Using fallback local dataset:", err.message);
+      setApiError(err.message || "Failed to load placement drives from API.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     checkHealth();
-    handleRoleSwitch("STUDENT");
-    const interval = setInterval(checkHealth, 20000);
+    initUserSession();
+    const interval = setInterval(checkHealth, 30000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     loadPortalData();
-  }, [searchQuery, selectedBranch, role]);
+  }, [searchQuery, selectedBranch, currentUser]);
 
   const handleApply = async (drive) => {
-    try {
-      if (getStoredToken() && role === "STUDENT") {
-        await applicationsApi.apply(drive.id);
-        showToast(`Successfully applied to ${drive.companyName}! 🎉`, "success");
-        await loadPortalData();
-        if (selectedDriveModal) setSelectedDriveModal(null);
-        return;
-      }
-    } catch (err) {
-      if (err.status === 403 || err.status === 409 || err.status === 400) {
-        showToast(err.message, "error");
-        return;
-      }
-    }
-
-    const isAlreadyApplied = applications.some((a) => a.jobDriveId === drive.id);
-    if (isAlreadyApplied) {
-      showToast("You have already applied for this drive.", "warning");
+    if (!currentUser || role !== "STUDENT") {
+      showToast("Please sign in as a Student to apply.", "warning");
+      setIsAuthModalOpen(true);
       return;
     }
 
-    const newApp = {
-      id: `app-${Date.now()}`,
-      jobDriveId: drive.id,
-      companyName: drive.companyName,
-      title: drive.title,
-      ctc: drive.ctc,
-      status: "APPLIED",
-      appliedAt: new Date().toISOString(),
-      location: drive.location,
-    };
-
-    setApplications([newApp, ...applications]);
-    showToast(`Successfully applied to ${drive.companyName}! 🎉`, "success");
-    if (selectedDriveModal) setSelectedDriveModal(null);
+    try {
+      await applicationsApi.apply(drive.id);
+      showToast(`Successfully applied to ${drive.companyName}! 🎉`, "success");
+      await loadPortalData();
+      if (selectedDriveModal) setSelectedDriveModal(null);
+    } catch (err) {
+      if (err.details && Array.isArray(err.details)) {
+        showToast(err.details.join(" | "), "error");
+      } else {
+        showToast(err.message || "Failed to apply for drive.", "error");
+      }
+    }
   };
 
   const handleCreateDrive = async (e) => {
     e.preventDefault();
+    if (!currentUser || (role !== "RECRUITER" && role !== "ADMIN")) {
+      showToast("Unauthorized: Please sign in as Recruiter or Admin.", "error");
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     if (!newDriveForm.title || !newDriveForm.companyName || !newDriveForm.ctc) {
       showToast("Please fill in all required fields", "error");
       return;
@@ -229,53 +264,28 @@ export default function App() {
     };
 
     try {
-      if (getStoredToken()) {
-        await drivesApi.createDrive(drivePayload);
-        showToast(`Drive for ${drivePayload.companyName} published!`, "success");
-        await loadPortalData();
-        setIsPostDriveOpen(false);
-        return;
-      }
+      await drivesApi.createDrive(drivePayload);
+      showToast(`Drive for ${drivePayload.companyName} published! 🚀`, "success");
+      await loadPortalData();
+      setIsPostDriveOpen(false);
     } catch (err) {
       showToast(err.message || "Failed to create drive", "error");
     }
-
-    const localDrive = {
-      id: `drive-${Date.now()}`,
-      ...drivePayload,
-      applicantsCount: 0,
-    };
-    setDrives([localDrive, ...drives]);
-    setIsPostDriveOpen(false);
-    showToast(`Drive for ${drivePayload.companyName} created!`, "success");
   };
 
   const handleUpdateStatus = async (appId, statusPayload) => {
     const payload = typeof statusPayload === "string" ? { status: statusPayload } : statusPayload;
     try {
-      if (getStoredToken()) {
-        await applicationsApi.updateStatus(appId, payload);
-      }
-    } catch (_) {}
-
-    setApplications(
-      applications.map((app) =>
-        app.id === appId
-          ? {
-              ...app,
-              status: payload.status,
-              interviewDate: payload.interviewDate !== undefined ? payload.interviewDate : app.interviewDate,
-              feedbackNotes: payload.feedbackNotes !== undefined ? payload.feedbackNotes : app.feedbackNotes,
-            }
-          : app
-      )
-    );
-    showToast(`Candidate stage updated to ${payload.status}! 🚀`, "success");
+      await applicationsApi.updateStatus(appId, payload);
+      showToast(`Candidate stage updated to ${payload.status}! 🚀`, "success");
+      await loadPortalData();
+    } catch (err) {
+      showToast(err.message || "Failed to update candidate status.", "error");
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans">
-      
       {/* Toast Alert */}
       {toastMessage && (
         <div
@@ -284,19 +294,28 @@ export default function App() {
               ? "bg-rose-600 border border-rose-700"
               : toastMessage.type === "warning"
               ? "bg-amber-600 border border-amber-700"
+              : toastMessage.type === "info"
+              ? "bg-indigo-600 border border-indigo-700"
               : "bg-emerald-600 border border-emerald-700"
           }`}
         >
-          {toastMessage.type === "error" ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
+          {toastMessage.type === "error" ? (
+            <XCircle size={16} />
+          ) : toastMessage.type === "warning" ? (
+            <AlertCircle size={16} />
+          ) : (
+            <CheckCircle2 size={16} />
+          )}
           <span>{toastMessage.text}</span>
         </div>
       )}
 
-      {/* Floating Glassmorphic Navbar */}
+      {/* Navbar with Authenticated Session State */}
       <Navbar
-        role={role}
-        onRoleChange={handleRoleSwitch}
+        currentUser={currentUser}
         profile={profile}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
         onEditProfile={() => setIsProfileModalOpen(true)}
         serverHealth={serverHealth}
         onCheckHealth={checkHealth}
@@ -307,7 +326,27 @@ export default function App() {
 
       {/* Main View */}
       <main className="flex-1 w-full">
-        {role === "STUDENT" && (
+        {/* API Error Alert Banner */}
+        {apiError && (
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-4">
+            <div className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
+              <AlertCircle size={18} className="text-rose-600 shrink-0" />
+              <div className="flex-1">
+                <span className="font-bold">API Connection Notice: </span>
+                <span>{apiError}</span>
+              </div>
+              <button
+                onClick={loadPortalData}
+                className="rounded-lg bg-rose-600 px-3 py-1 text-white hover:bg-rose-700 cursor-pointer font-bold"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Authenticated Role Views */}
+        {role === "STUDENT" || role === "GUEST" ? (
           <StudentDashboard
             profile={profile}
             drives={drives}
@@ -317,105 +356,114 @@ export default function App() {
             selectedBranch={selectedBranch}
             onSelectBranch={setSelectedBranch}
             onApply={handleApply}
-            onSelectDriveModal={setSelectedDriveModal}
-            onResumeUpdated={(newResumeUrl) => {
-              setProfile((prev) => ({ ...prev, resumeUrl: newResumeUrl }));
-              loadPortalData();
-            }}
+            onOpenDriveModal={setSelectedDriveModal}
+            onUploadSuccess={(newProfile) => setProfile(newProfile)}
             showToast={showToast}
           />
-        )}
-
-        {role === "RECRUITER" && (
-          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        ) : role === "RECRUITER" ? (
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-6 mb-8">
               <div>
-                <h2 className="font-heading text-2xl font-extrabold text-slate-900">
+                <h1 className="font-heading text-2xl font-extrabold text-slate-900">
                   Recruiter Drive Console
-                </h2>
+                </h1>
                 <p className="text-xs text-slate-500 font-medium mt-1">
-                  Manage placement postings and candidate pipeline progression.
+                  Manage your authored placement postings and candidate pipeline progression.
                 </p>
               </div>
-
               <button
                 onClick={() => setIsPostDriveOpen(true)}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-500/25 hover:from-indigo-700 hover:to-indigo-800 cursor-pointer"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2 text-xs font-bold text-white shadow-md shadow-indigo-500/25 hover:from-indigo-700 hover:to-indigo-800 cursor-pointer"
               >
                 <PlusCircle size={15} />
                 <span>Post New Drive</span>
               </button>
             </div>
 
-            <ApplicantTable
-              applications={applications}
-              studentProfile={profile}
-              onUpdateStatus={handleUpdateStatus}
-              onExportCSV={async () => {
-                try {
-                  const driveId = drives[0]?.id;
-                  if (driveId && getStoredToken()) {
-                    await drivesApi.exportApplicantsCsv(driveId, drives[0]?.title || "placement-drive");
-                    showToast("Applicant CSV report downloaded! 📊", "success");
-                    return;
+            {isLoading ? (
+              <div className="flex items-center justify-center p-12 text-slate-400">
+                <Loader2 size={24} className="animate-spin text-indigo-600" />
+                <span className="ml-2 font-semibold text-xs">Loading candidate roster...</span>
+              </div>
+            ) : applications.length === 0 ? (
+              <div className="glass-card rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-soft">
+                <Briefcase size={36} className="mx-auto text-slate-300 mb-3" />
+                <h3 className="text-sm font-bold text-slate-800">No applicants yet</h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                  Candidates who apply to your authored placement drives will appear here in real time.
+                </p>
+              </div>
+            ) : (
+              <ApplicantTable
+                applications={applications}
+                studentProfile={profile}
+                onUpdateStatus={handleUpdateStatus}
+                onExportCSV={() => {
+                  if (drives.length > 0) {
+                    drivesApi.exportApplicantsCsv(drives[0].id, drives[0].title);
                   }
-                } catch (_) {}
-                // Fallback client CSV export
-                showToast("Generating applicant CSV report...", "info");
-              }}
-            />
+                }}
+              />
+            )}
           </div>
-        )}
-
-        {role === "ADMIN" && (
-          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-            <div className="mb-8">
-              <h2 className="font-heading text-2xl font-extrabold text-slate-900">
-                Executive Placement Analytics
-              </h2>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Campus-wide drive conversion, CTC benchmarks, and database health.
-              </p>
+        ) : (
+          /* ADMIN SUITE */
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-6 mb-8">
+              <div>
+                <h1 className="font-heading text-2xl font-extrabold text-slate-900">
+                  Placement Director Executive Suite
+                </h1>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  University-wide placement analytics, audit controls, and applicant tracking.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsPostDriveOpen(true)}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2 text-xs font-bold text-white shadow-md shadow-indigo-500/25 hover:from-indigo-700 hover:to-indigo-800 cursor-pointer"
+              >
+                <PlusCircle size={15} />
+                <span>Create Drive</span>
+              </button>
             </div>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-              <div className="glass-card rounded-2xl p-5 border border-slate-200 bg-white">
-                <span className="micro-badge bg-slate-100 text-slate-700 border border-slate-200">Total Offers</span>
-                <div className="font-heading text-3xl font-extrabold text-indigo-600 mt-2">
-                  {adminStats.totalOffers}
+            {/* Metrics Ribbon */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">
+              <div className="glass-card rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Total Active Drives
+                  </span>
+                  <Briefcase size={18} className="text-indigo-600" />
                 </div>
-                <span className="text-[11px] text-emerald-600 font-bold mt-1 block">
-                  ↑ 18% increase
-                </span>
-              </div>
-
-              <div className="glass-card rounded-2xl p-5 border border-slate-200 bg-white">
-                <span className="micro-badge bg-slate-100 text-slate-700 border border-slate-200">Placement Rate</span>
-                <div className="font-heading text-3xl font-extrabold text-slate-900 mt-2">
-                  {adminStats.placementRate}
-                </div>
-                <span className="text-[11px] text-slate-500 font-medium mt-1 block">138 students placed</span>
-              </div>
-
-              <div className="glass-card rounded-2xl p-5 border border-slate-200 bg-white">
-                <span className="micro-badge bg-slate-100 text-slate-700 border border-slate-200">Average Package</span>
-                <div className="font-heading text-3xl font-extrabold text-slate-900 mt-2">
-                  {adminStats.averagePackage}
-                </div>
-                <span className="text-[11px] text-indigo-600 font-bold mt-1 block">
-                  Highest: {adminStats.highestPackage}
-                </span>
-              </div>
-
-              <div className="glass-card rounded-2xl p-5 border border-slate-200 bg-white">
-                <span className="micro-badge bg-slate-100 text-slate-700 border border-slate-200">Active Drives</span>
-                <div className="font-heading text-3xl font-extrabold text-slate-900 mt-2">
+                <div className="font-heading text-2xl font-extrabold text-slate-900 mt-2">
                   {drives.length}
                 </div>
-                <span className="text-[11px] text-purple-700 font-bold mt-1 block">
-                  Live in portal
-                </span>
+                <p className="text-[11px] font-medium text-emerald-600 mt-1">Live recruitment drives</p>
+              </div>
+
+              <div className="glass-card rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Total Applications
+                  </span>
+                  <TrendingUp size={18} className="text-emerald-600" />
+                </div>
+                <div className="font-heading text-2xl font-extrabold text-slate-900 mt-2">
+                  {applications.length}
+                </div>
+                <p className="text-[11px] font-medium text-slate-500 mt-1">Across all branches</p>
+              </div>
+
+              <div className="glass-card rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Placement Rate
+                  </span>
+                  <Award size={18} className="text-purple-600" />
+                </div>
+                <div className="font-heading text-2xl font-extrabold text-slate-900 mt-2">92%</div>
+                <p className="text-[11px] font-medium text-emerald-600 mt-1">Average CTC 14.8 LPA</p>
               </div>
             </div>
 
@@ -423,16 +471,10 @@ export default function App() {
               applications={applications}
               studentProfile={profile}
               onUpdateStatus={handleUpdateStatus}
-              onExportCSV={async () => {
-                try {
-                  const driveId = drives[0]?.id;
-                  if (driveId && getStoredToken()) {
-                    await drivesApi.exportApplicantsCsv(driveId, drives[0]?.title || "all-drives");
-                    showToast("Applicant CSV report downloaded! 📊", "success");
-                    return;
-                  }
-                } catch (_) {}
-                showToast("Generating applicant CSV report...", "info");
+              onExportCSV={() => {
+                if (drives.length > 0) {
+                  drivesApi.exportApplicantsCsv(drives[0].id, drives[0].title);
+                }
               }}
             />
           </div>
@@ -442,19 +484,19 @@ export default function App() {
       {/* QUICK SEARCH MODAL */}
       {isSearchModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/40 backdrop-blur-sm pt-20 px-4"
+          className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-slate-900/40 backdrop-blur-sm p-4"
           onClick={() => setIsSearchModalOpen(false)}
         >
           <div
-            className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden"
+            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden text-xs"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3.5 bg-slate-50/50">
-              <Search size={18} className="text-slate-400" />
+              <Search size={16} className="text-slate-400" />
               <input
                 type="text"
                 autoFocus
-                placeholder="Type to search placement drives, companies, or CTC..."
+                placeholder="Type company, role, or skill..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none"
@@ -465,7 +507,7 @@ export default function App() {
             </div>
 
             <div className="max-h-80 overflow-y-auto p-2 divide-y divide-slate-100">
-              {drives.slice(0, 4).map((d) => (
+              {drives.slice(0, 5).map((d) => (
                 <div
                   key={d.id}
                   onClick={() => {
@@ -654,6 +696,14 @@ export default function App() {
           setProfile(updatedProfile);
           loadPortalData();
         }}
+        showToast={showToast}
+      />
+
+      {/* AUTH MODAL */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
         showToast={showToast}
       />
     </div>
