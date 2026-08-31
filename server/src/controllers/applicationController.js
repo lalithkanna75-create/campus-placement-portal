@@ -189,10 +189,26 @@ const getDriveApplications = async (req, res, next) => {
       orderBy: { appliedAt: "desc" },
     });
 
+    const sanitizedApplications = applications.map((app) => {
+      if (app.student?.profile?.resumeUrl) {
+        return {
+          ...app,
+          student: {
+            ...app.student,
+            profile: {
+              ...app.student.profile,
+              resumeUrl: `/api/students/resume/${app.student.id}`,
+            },
+          },
+        };
+      }
+      return app;
+    });
+
     return res.status(200).json({
       success: true,
-      count: applications.length,
-      data: { applications },
+      count: sanitizedApplications.length,
+      data: { applications: sanitizedApplications },
     });
   } catch (error) {
     next(error);

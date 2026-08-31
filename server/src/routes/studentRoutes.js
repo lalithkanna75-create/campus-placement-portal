@@ -5,14 +5,16 @@ const {
   uploadStudentResume,
   getStudentProfile,
   upsertStudentProfile,
+  getStudentResume,
 } = require("../controllers/studentController");
 
 const router = express.Router();
 
-// Protected: Student Only
+// Protected: Student Only Profile Management
 router.post("/profile", protect, authorize("STUDENT"), upsertStudentProfile);
 router.get("/profile", protect, authorize("STUDENT"), getStudentProfile);
 
+// Protected: Student Resume Upload
 router.post(
   "/upload-resume",
   protect,
@@ -30,5 +32,8 @@ router.post(
   },
   uploadStudentResume
 );
+
+// Protected: Authenticated & Authorized Resume Streaming (Student owner, Hiring Recruiter, Admin)
+router.get("/resume/:userId", protect, getStudentResume);
 
 module.exports = router;

@@ -71,16 +71,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
-// Static Asset Serving with Cache-Control for Uploaded Resumes
-app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "../uploads"), {
-    maxAge: "1d",
-    setHeaders: (res) => {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-    },
-  })
-);
+// Public uploads route removed for privacy; resumes are served via authenticated /api/students/resume/:userId
 
 // API Routes Mounting
 app.use("/api", healthRoutes);

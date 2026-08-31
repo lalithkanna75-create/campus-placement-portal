@@ -283,7 +283,7 @@ const exportDriveApplicantsCSV = async (req, res, next) => {
       const host = req.get("host") || "localhost:5000";
       const protocol = req.protocol || "http";
       const resumeLink = p?.resumeUrl
-        ? (p.resumeUrl.startsWith("http") ? p.resumeUrl : `${protocol}://${host}${p.resumeUrl}`)
+        ? `${protocol}://${host}/api/students/resume/${app.studentId}`
         : "Not Uploaded";
 
       return {
