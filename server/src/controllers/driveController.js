@@ -112,7 +112,7 @@ const getDrives = async (req, res, next) => {
   }
 };
 
-// GET /api/drives/:id
+// GET /api/drives/:id (Public - drive details without applicant PII)
 const getDriveById = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -123,16 +123,8 @@ const getDriveById = async (req, res, next) => {
         createdBy: {
           select: { id: true, email: true },
         },
-        applications: {
-          include: {
-            student: {
-              select: {
-                id: true,
-                email: true,
-                profile: true,
-              },
-            },
-          },
+        _count: {
+          select: { applications: true },
         },
       },
     });
@@ -144,9 +136,16 @@ const getDriveById = async (req, res, next) => {
       });
     }
 
+    const { _count, ...driveData } = drive;
+
     return res.status(200).json({
       success: true,
-      data: { drive },
+      data: {
+        drive: {
+          ...driveData,
+          applicantsCount: _count.applications,
+        },
+      },
     });
   } catch (error) {
     next(error);
